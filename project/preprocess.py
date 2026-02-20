@@ -385,6 +385,67 @@ def main():
         top3_lows = [{'time': v[0], 'value': v[1]} for v in sorted_asc[:3]]
         peaks_and_lows[metric] = {'peaks': top3_peaks, 'lows': top3_lows}
 
+    # ========================================
+    # Phase 4: Additional aggregations for KPI drill-downs
+    # ========================================
+
+    # ---- job_summary_all: All jobs with all metric sums ----
+    job_all = defaultdict(lambda: {'CPU_SU': 0, 'SRB_SU': 0, 'IO_SU': 0, 'MSO_SU': 0, 'CPU_SEC': 0.0, 'EXCP_CNT': 0, 'DASD_SSCH': 0, 'CONNECT': 0, 'DISCON': 0, 'PENDING': 0, 'ZIIP_SEC': 0.0, 'count': 0})
+    for r in data:
+        j = job_all[r['JOBNAME']]
+        j['CPU_SU'] += r['CPU_SU']; j['SRB_SU'] += r['SRB_SU']; j['IO_SU'] += r['IO_SU']; j['MSO_SU'] += r['MSO_SU']
+        j['CPU_SEC'] += r['CPU_SEC']; j['EXCP_CNT'] += r['EXCP_CNT']; j['DASD_SSCH'] += r['DASD_SSCH']
+        j['CONNECT'] += r['CONNECT']; j['DISCON'] += r['DISCON']; j['PENDING'] += r['PENDING']
+        j['ZIIP_SEC'] += r['ZIIP_SEC']; j['count'] += 1
+    job_summary_all = [{'job': n, 'CPU_SU': v['CPU_SU'], 'SRB_SU': v['SRB_SU'], 'IO_SU': v['IO_SU'], 'MSO_SU': v['MSO_SU'],
+                        'CPU_SEC': round(v['CPU_SEC'], 2), 'EXCP_CNT': v['EXCP_CNT'], 'DASD_SSCH': v['DASD_SSCH'],
+                        'CONNECT': v['CONNECT'], 'DISCON': v['DISCON'], 'PENDING': v['PENDING'],
+                        'ZIIP_SEC': round(v['ZIIP_SEC'], 2), 'count': v['count']}
+                       for n, v in sorted(job_all.items(), key=lambda x: x[1]['CPU_SU'], reverse=True)]
+
+    # ---- servcls_breakdown: Per-service-class metric breakdowns ----
+    servcls_breakdown = [{'serv_cls': n, 'count': v['count'], 'CPU_SU': v['CPU_SU'],
+                          'CPU_SEC': round(v['CPU_SEC'], 2), 'EXCP_CNT': v['EXCP_CNT'],
+                          'MSO_SU': v['MSO_SU'], 'ZIIP_SEC': round(v['ZIIP_SEC'], 2),
+                          'DASD_SSCH': sum(r['DASD_SSCH'] for r in data if r['SERV_CLS'] == n),
+                          'CONNECT': sum(r['CONNECT'] for r in data if r['SERV_CLS'] == n)}
+                         for n, v in serv_cls_dist.items()]
+
+    # ---- date_breakdown: Per-date metric breakdowns (already have date_data but add more fields) ----
+    date_breakdown = []
+    for day, v in sorted(date_dist.items()):
+        date_breakdown.append({
+            'date': f"Day {day}", 'count': v['count'], 'CPU_SU': v['CPU_SU'],
+            'CPU_SEC': round(v['CPU_SEC'], 2), 'EXCP_CNT': v['EXCP_CNT'],
+            'MSO_SU': v['MSO_SU'], 'ZIIP_SEC': round(v['ZIIP_SEC'], 2),
+            'CONNECT': v['CONNECT'], 'type2_count': v['type2_count'],
+            'DASD_SSCH': sum(r['DASD_SSCH'] for r in data if r['DATE'] == day)
+        })
+
+    # ---- type_breakdown: Per-record-type metric breakdowns ----
+    type_breakdown = []
+    for tp_name, v in type_dist.items():
+        recs_of_type = [r for r in data if r['TYPE'] == tp_name]
+        type_breakdown.append({
+            'type': tp_name, 'count': v['count'], 'CPU_SU': v['CPU_SU'],
+            'CPU_SEC': round(v['CPU_SEC'], 2), 'EXCP_CNT': v['EXCP_CNT'],
+            'DASD_SSCH': sum(r['DASD_SSCH'] for r in recs_of_type),
+            'CONNECT': sum(r['CONNECT'] for r in recs_of_type),
+            'ZIIP_SEC': round(sum(r['ZIIP_SEC'] for r in recs_of_type), 2)
+        })
+
+    # ---- ziip_jobs: Jobs with non-zero ZIIP_SEC ----
+    ziip_jobs = [j for j in job_summary_all if j['ZIIP_SEC'] > 0]
+    ziip_jobs.sort(key=lambda x: x['ZIIP_SEC'], reverse=True)
+
+    # ---- Top 20 jobs by DASD_SSCH ----
+    top20_jobs_dasd = sorted(job_all.items(), key=lambda x: x[1]['DASD_SSCH'], reverse=True)[:20]
+    top20_jobs_dasd = [{'job': n, 'DASD_SSCH': v['DASD_SSCH'], 'EXCP_CNT': v['EXCP_CNT'], 'count': v['count']} for n, v in top20_jobs_dasd]
+
+    # ---- Top 20 jobs by CONNECT ----
+    top20_jobs_connect = sorted(job_all.items(), key=lambda x: x[1]['CONNECT'], reverse=True)[:20]
+    top20_jobs_connect = [{'job': n, 'CONNECT': v['CONNECT'], 'DISCON': v['DISCON'], 'PENDING': v['PENDING'], 'count': v['count']} for n, v in top20_jobs_connect]
+
     # ---- Assemble output ----
     aggregated = {
         'kpis': kpis,
@@ -411,6 +472,14 @@ def main():
         'r4ha_peaks': r4ha_peaks,
         'r4ha_peak_detail': r4ha_peak_detail,
         'peaks_and_lows': peaks_and_lows,
+        # Phase 4: KPI drill-down data
+        'job_summary_all': job_summary_all,
+        'servcls_breakdown': servcls_breakdown,
+        'date_breakdown': date_breakdown,
+        'type_breakdown': type_breakdown,
+        'ziip_jobs': ziip_jobs,
+        'top20_jobs_dasd': top20_jobs_dasd,
+        'top20_jobs_connect': top20_jobs_connect,
     }
 
     with open('./project/temp/aggregated_data.json', 'w') as f:

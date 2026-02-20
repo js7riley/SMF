@@ -74,8 +74,11 @@ a { color: var(--accent-light); text-decoration: none; }
 .section-title { font-size: 18px; font-weight: 700; color: var(--text-heading); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .section-title .icon { font-size: 20px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
-.kpi-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.kpi-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; cursor: pointer; }
+.kpi-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 32px rgba(59,130,246,0.3); border-color: var(--accent); }
+.kpi-card:active { transform: translateY(-1px) scale(0.99); }
+.kpi-card .kpi-click-hint { font-size: 10px; color: var(--accent-light); opacity: 0; transition: opacity 0.2s; margin-top: 4px; }
+.kpi-card:hover .kpi-click-hint { opacity: 0.8; }
 .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
 .kpi-card:nth-child(1)::before { background: var(--accent); }
 .kpi-card:nth-child(2)::before { background: var(--accent2); }
@@ -215,6 +218,27 @@ a { color: var(--accent-light); text-decoration: none; }
         </tr></thead>
         <tbody id="drillTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Drill-Down Modal -->
+<div class="drill-overlay" id="kpiDrillOverlay" onclick="if(event.target===this)closeKpiDrill()">
+  <div class="drill-modal" style="position:relative;width:960px;">
+    <button class="drill-close" onclick="closeKpiDrill()">&times;</button>
+    <h3 id="kpiDrillTitle">KPI Analysis</h3>
+    <div class="drill-time" id="kpiDrillSubtitle"></div>
+    <div class="drill-kpis" id="kpiDrillSummary"></div>
+    <div id="kpiDrillCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;"></div>
+    <div id="kpiDrillTableWrap" style="margin-top:12px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:8px;" id="kpiDrillTableTitle">Details</div>
+      <div style="margin-bottom:8px;"><input type="text" class="table-search" id="kpiDrillSearch" placeholder="Search..." oninput="filterKpiDrillTable()" style="width:240px;"></div>
+      <div class="data-table-wrap" style="max-height:350px;overflow-y:auto;">
+        <table class="drill-table" id="kpiDrillTable">
+          <thead id="kpiDrillThead"></thead>
+          <tbody id="kpiDrillTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -521,6 +545,13 @@ const DATA_R4HA_SERIES = [{"time_label": "D46 10:30", "CPU_SU": 53212001.0, "CPU
 const DATA_R4HA_PEAKS = {"CPU_SU": {"peak_time": "D46 10:30", "peak_value": 53212001.0, "low_time": "D48 16:15", "low_value": 14699675.6, "avg_value": 19443747.26}, "CPU_SEC": {"peak_time": "D46 10:30", "peak_value": 519.84, "low_time": "D48 16:15", "low_value": 143.65, "avg_value": 190.04}, "EXCP_CNT": {"peak_time": "D49 02:08", "peak_value": 50489.14, "low_time": "D48 13:32", "low_value": 9459.14, "avg_value": 18248.11}, "DASD_SSCH": {"peak_time": "D46 10:30", "peak_value": 279033.0, "low_time": "D48 16:15", "low_value": 76043.63, "avg_value": 101388.8}, "SRB_SU": {"peak_time": "D46 10:30", "peak_value": 8402649.0, "low_time": "D48 16:15", "low_value": 2326228.47, "avg_value": 3080593.54}};
 const DATA_R4HA_PEAK_DETAIL = {"peak_time": "D46 10:30", "peak_value": 53212001.0, "window_start": "D46 10:30", "window_end": "D46 11:30", "window_summary": {"total_records": 189, "unique_jobs": 64, "total_cpu_sec": 1559.98, "total_excp_cnt": 98914, "total_dasd_ssch": 838867, "total_cpu_su": 159677344, "total_srb_su": 25217242, "total_connect": 819151, "total_discon": 20039, "total_pending": 1967, "total_ziip_sec": 0.7}, "top_jobs": [{"job": "CONSOLE", "CPU_SU": 99021299, "SRB_SU": 8797008, "CPU_SEC": 909.53, "EXCP_CNT": 27231, "DASD_SSCH": 13692, "CONNECT": 13371, "DISCON": 183, "PENDING": 30, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "GRS", "CPU_SU": 41147389, "SRB_SU": 12324681, "CPU_SEC": 451.08, "EXCP_CNT": 630, "DASD_SSCH": 384, "CONNECT": 375, "DISCON": 48, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "SMSPDSE1", "CPU_SU": 9558780, "SRB_SU": 1304608, "CPU_SEC": 92.07, "EXCP_CNT": 45, "DASD_SSCH": 738830, "CONNECT": 721512, "DISCON": 19338, "PENDING": 1395, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "SMSPDSE", "CPU_SU": 5929429, "SRB_SU": 1196681, "CPU_SEC": 60.66, "EXCP_CNT": 9, "DASD_SSCH": 8656, "CONNECT": 8452, "DISCON": 207, "PENDING": 9, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "RASP", "CPU_SU": 1382928, "SRB_SU": 1110286, "CPU_SEC": 21.03, "EXCP_CNT": 9, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "AVZ1PROC", "CPU_SU": 740081, "SRB_SU": 1224, "CPU_SEC": 6.23, "EXCP_CNT": 3622, "DASD_SSCH": 3024, "CONNECT": 2952, "DISCON": 5, "PENDING": 0, "ZIIP_SEC": 0.02, "STEPNAME": "IEFPROC", "PGMNAME": "AVZ2IN", "count": 3}, {"job": "RMFGAT", "CPU_SU": 481519, "SRB_SU": 2246, "CPU_SEC": 3.83, "EXCP_CNT": 108, "DASD_SSCH": 270, "CONNECT": 261, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.25, "STEPNAME": "IEFPROC", "PGMNAME": "ERB3GMFC", "count": 3}, {"job": "VMCF", "CPU_SU": 318072, "SRB_SU": 129951, "CPU_SEC": 3.78, "EXCP_CNT": 198, "DASD_SSCH": 81, "CONNECT": 78, "DISCON": 3, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "JES2", "CPU_SU": 271637, "SRB_SU": 4537, "CPU_SEC": 2.33, "EXCP_CNT": 20403, "DASD_SSCH": 20325, "CONNECT": 19847, "DISCON": 40, "PENDING": 35, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "HASJES20", "count": 3}, {"job": "WLM", "CPU_SU": 158237, "SRB_SU": 27234, "CPU_SEC": 1.56, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IWMINJST", "count": 3}, {"job": "DB2SMSTR", "CPU_SU": 106143, "SRB_SU": 3791, "CPU_SEC": 0.9, "EXCP_CNT": 6527, "DASD_SSCH": 4897, "CONNECT": 4780, "DISCON": 116, "PENDING": 9, "ZIIP_SEC": 0.01, "STEPNAME": "IEFPROC", "PGMNAME": "DSNYASCP", "count": 3}, {"job": "RMF", "CPU_SU": 93132, "SRB_SU": 8696, "CPU_SEC": 0.87, "EXCP_CNT": 0, "DASD_SSCH": 12, "CONNECT": 9, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "ERBMFMFC", "count": 3}, {"job": "C2POLICE", "CPU_SU": 73870, "SRB_SU": 1361, "CPU_SEC": 0.63, "EXCP_CNT": 6961, "DASD_SSCH": 2748, "CONNECT": 2682, "DISCON": 4, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "C2POLICE", "PGMNAME": "C2POLICE", "count": 3}, {"job": "XCFAS", "CPU_SU": 64401, "SRB_SU": 41636, "CPU_SEC": 0.89, "EXCP_CNT": 8563, "DASD_SSCH": 8563, "CONNECT": 8361, "DISCON": 1, "PENDING": 50, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IXCINJST", "count": 3}, {"job": "DB2SDBM1", "CPU_SU": 61729, "SRB_SU": 2772, "CPU_SEC": 0.14, "EXCP_CNT": 64, "DASD_SSCH": 139, "CONNECT": 134, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.4, "STEPNAME": "IEFPROC", "PGMNAME": "DSNYASCP", "count": 3}, {"job": "OMVS", "CPU_SU": 37862, "SRB_SU": 4153, "CPU_SEC": 0.36, "EXCP_CNT": 52, "DASD_SSCH": 40, "CONNECT": 38, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "OMVS", "PGMNAME": "BPXINIT", "count": 3}, {"job": "TCPIP", "CPU_SU": 34428, "SRB_SU": 26259, "CPU_SEC": 0.48, "EXCP_CNT": 7342, "DASD_SSCH": 52, "CONNECT": 49, "DISCON": 1, "PENDING": 99, "ZIIP_SEC": 0.02, "STEPNAME": "TCPIP", "PGMNAME": "EZBTCPIP", "count": 3}, {"job": "JES2MON", "CPU_SU": 28369, "SRB_SU": 11337, "CPU_SEC": 0.32, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "HASJES2$", "count": 3}, {"job": "SMF", "CPU_SU": 19193, "SRB_SU": 567, "CPU_SEC": 0.17, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IFASMF", "count": 3}, {"job": "C2PACMON", "CPU_SU": 18986, "SRB_SU": 40, "CPU_SEC": 0.16, "EXCP_CNT": 1068, "DASD_SSCH": 38, "CONNECT": 35, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "C2PACMON", "PGMNAME": "C2PACMON", "count": 3}], "all_jobs": [{"job": "CONSOLE", "CPU_SU": 99021299, "SRB_SU": 8797008, "CPU_SEC": 909.53, "EXCP_CNT": 27231, "DASD_SSCH": 13692, "CONNECT": 13371, "DISCON": 183, "PENDING": 30, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "GRS", "CPU_SU": 41147389, "SRB_SU": 12324681, "CPU_SEC": 451.08, "EXCP_CNT": 630, "DASD_SSCH": 384, "CONNECT": 375, "DISCON": 48, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "SMSPDSE1", "CPU_SU": 9558780, "SRB_SU": 1304608, "CPU_SEC": 92.07, "EXCP_CNT": 45, "DASD_SSCH": 738830, "CONNECT": 721512, "DISCON": 19338, "PENDING": 1395, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "SMSPDSE", "CPU_SU": 5929429, "SRB_SU": 1196681, "CPU_SEC": 60.66, "EXCP_CNT": 9, "DASD_SSCH": 8656, "CONNECT": 8452, "DISCON": 207, "PENDING": 9, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "RASP", "CPU_SU": 1382928, "SRB_SU": 1110286, "CPU_SEC": 21.03, "EXCP_CNT": 9, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "AVZ1PROC", "CPU_SU": 740081, "SRB_SU": 1224, "CPU_SEC": 6.23, "EXCP_CNT": 3622, "DASD_SSCH": 3024, "CONNECT": 2952, "DISCON": 5, "PENDING": 0, "ZIIP_SEC": 0.02, "STEPNAME": "IEFPROC", "PGMNAME": "AVZ2IN", "count": 3}, {"job": "RMFGAT", "CPU_SU": 481519, "SRB_SU": 2246, "CPU_SEC": 3.83, "EXCP_CNT": 108, "DASD_SSCH": 270, "CONNECT": 261, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.25, "STEPNAME": "IEFPROC", "PGMNAME": "ERB3GMFC", "count": 3}, {"job": "VMCF", "CPU_SU": 318072, "SRB_SU": 129951, "CPU_SEC": 3.78, "EXCP_CNT": 198, "DASD_SSCH": 81, "CONNECT": 78, "DISCON": 3, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "JES2", "CPU_SU": 271637, "SRB_SU": 4537, "CPU_SEC": 2.33, "EXCP_CNT": 20403, "DASD_SSCH": 20325, "CONNECT": 19847, "DISCON": 40, "PENDING": 35, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "HASJES20", "count": 3}, {"job": "WLM", "CPU_SU": 158237, "SRB_SU": 27234, "CPU_SEC": 1.56, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IWMINJST", "count": 3}, {"job": "DB2SMSTR", "CPU_SU": 106143, "SRB_SU": 3791, "CPU_SEC": 0.9, "EXCP_CNT": 6527, "DASD_SSCH": 4897, "CONNECT": 4780, "DISCON": 116, "PENDING": 9, "ZIIP_SEC": 0.01, "STEPNAME": "IEFPROC", "PGMNAME": "DSNYASCP", "count": 3}, {"job": "RMF", "CPU_SU": 93132, "SRB_SU": 8696, "CPU_SEC": 0.87, "EXCP_CNT": 0, "DASD_SSCH": 12, "CONNECT": 9, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "ERBMFMFC", "count": 3}, {"job": "C2POLICE", "CPU_SU": 73870, "SRB_SU": 1361, "CPU_SEC": 0.63, "EXCP_CNT": 6961, "DASD_SSCH": 2748, "CONNECT": 2682, "DISCON": 4, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "C2POLICE", "PGMNAME": "C2POLICE", "count": 3}, {"job": "XCFAS", "CPU_SU": 64401, "SRB_SU": 41636, "CPU_SEC": 0.89, "EXCP_CNT": 8563, "DASD_SSCH": 8563, "CONNECT": 8361, "DISCON": 1, "PENDING": 50, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IXCINJST", "count": 3}, {"job": "DB2SDBM1", "CPU_SU": 61729, "SRB_SU": 2772, "CPU_SEC": 0.14, "EXCP_CNT": 64, "DASD_SSCH": 139, "CONNECT": 134, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.4, "STEPNAME": "IEFPROC", "PGMNAME": "DSNYASCP", "count": 3}, {"job": "OMVS", "CPU_SU": 37862, "SRB_SU": 4153, "CPU_SEC": 0.36, "EXCP_CNT": 52, "DASD_SSCH": 40, "CONNECT": 38, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "OMVS", "PGMNAME": "BPXINIT", "count": 3}, {"job": "TCPIP", "CPU_SU": 34428, "SRB_SU": 26259, "CPU_SEC": 0.48, "EXCP_CNT": 7342, "DASD_SSCH": 52, "CONNECT": 49, "DISCON": 1, "PENDING": 99, "ZIIP_SEC": 0.02, "STEPNAME": "TCPIP", "PGMNAME": "EZBTCPIP", "count": 3}, {"job": "JES2MON", "CPU_SU": 28369, "SRB_SU": 11337, "CPU_SEC": 0.32, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "HASJES2$", "count": 3}, {"job": "SMF", "CPU_SU": 19193, "SRB_SU": 567, "CPU_SEC": 0.17, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IFASMF", "count": 3}, {"job": "C2PACMON", "CPU_SU": 18986, "SRB_SU": 40, "CPU_SEC": 0.16, "EXCP_CNT": 1068, "DASD_SSCH": 38, "CONNECT": 35, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "C2PACMON", "PGMNAME": "C2PACMON", "count": 3}, {"job": "ZFS", "CPU_SU": 18840, "SRB_SU": 4225, "CPU_SEC": 0.2, "EXCP_CNT": 5193, "DASD_SSCH": 4117, "CONNECT": 4019, "DISCON": 52, "PENDING": 9, "ZIIP_SEC": 0.0, "STEPNAME": "ZFZGO", "PGMNAME": "BPXVCLNY", "count": 3}, {"job": "TN3270", "CPU_SU": 18196, "SRB_SU": 7453, "CPU_SEC": 0.22, "EXCP_CNT": 9, "DASD_SSCH": 9, "CONNECT": 7, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "STEP01", "PGMNAME": "EZBTNINI", "count": 3}, {"job": "CATALOG", "CPU_SU": 14510, "SRB_SU": 750, "CPU_SEC": 0.13, "EXCP_CNT": 1903, "DASD_SSCH": 5430, "CONNECT": 5301, "DISCON": 0, "PENDING": 4, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IGG0CLX0", "count": 3}, {"job": "DSFS", "CPU_SU": 10582, "SRB_SU": 2783, "CPU_SEC": 0.11, "EXCP_CNT": 180, "DASD_SSCH": 180, "CONNECT": 174, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "DSFSGO", "PGMNAME": "BPXVCLNY", "count": 3}, {"job": "JESXCF", "CPU_SU": 10355, "SRB_SU": 5372, "CPU_SEC": 0.13, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IXZIX00", "count": 3}, {"job": "CSQ1MSTR", "CPU_SU": 9275, "SRB_SU": 1136, "CPU_SEC": 0.09, "EXCP_CNT": 4, "DASD_SSCH": 4, "CONNECT": 3, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "PROCSTEP", "PGMNAME": "CSQYASCP", "count": 3}, {"job": "ANTMAIN", "CPU_SU": 9068, "SRB_SU": 1803, "CPU_SEC": 0.1, "EXCP_CNT": 0, "DASD_SSCH": 2036, "CONNECT": 1987, "DISCON": 8, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "ANTMAIN", "count": 3}, {"job": "MSTJCL00", "CPU_SU": 9039, "SRB_SU": 12615, "CPU_SEC": 0.18, "EXCP_CNT": 469, "DASD_SSCH": 18896, "CONNECT": 18452, "DISCON": 19, "PENDING": 271, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "IEEMB860", "count": 3}, {"job": "SMS", "CPU_SU": 5670, "SRB_SU": 346, "CPU_SEC": 0.04, "EXCP_CNT": 7920, "DASD_SSCH": 1089, "CONNECT": 1062, "DISCON": 0, "PENDING": 10, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IGDSSI01", "count": 3}, {"job": "BPXOINIT", "CPU_SU": 5206, "SRB_SU": 310, "CPU_SEC": 0.05, "EXCP_CNT": 66, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "BPXOINIT", "PGMNAME": "BPXPINPR", "count": 3}, {"job": "VTAM", "CPU_SU": 4190, "SRB_SU": 3028, "CPU_SEC": 0.06, "EXCP_CNT": 8, "DASD_SSCH": 8, "CONNECT": 7, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "NET", "PGMNAME": "ISTINM01", "count": 3}, {"job": "DB2SDIST", "CPU_SU": 2631, "SRB_SU": 309, "CPU_SEC": 0.03, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "DSNYASCP", "count": 3}, {"job": "IM272SCI", "CPU_SU": 1892, "SRB_SU": 198, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "BPEINI00", "count": 3}, {"job": "IM27CTL", "CPU_SU": 1692, "SRB_SU": 660, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "DFSMVRC0", "count": 3}, {"job": "IOSAS", "CPU_SU": 1691, "SRB_SU": 240, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IOSVROUT", "count": 3}, {"job": "ICSF", "CPU_SU": 1371, "SRB_SU": 275, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "CSF", "PGMNAME": "CSFINIT", "count": 3}, {"job": "IXGLOGR", "CPU_SU": 1059, "SRB_SU": 3756, "CPU_SEC": 0.05, "EXCP_CNT": 9, "DASD_SSCH": 4990, "CONNECT": 4871, "DISCON": 2, "PENDING": 46, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IXGBLF01", "count": 3}, {"job": "ALLOCAS", "CPU_SU": 990, "SRB_SU": 22125, "CPU_SEC": 0.18, "EXCP_CNT": 45, "DASD_SSCH": 201, "CONNECT": 195, "DISCON": 9, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "IM272RM1", "CPU_SU": 905, "SRB_SU": 158, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "BPEINI00", "count": 3}, {"job": "IM272OM1", "CPU_SU": 901, "SRB_SU": 158, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "BPEINI00", "count": 3}, {"job": "RACF", "CPU_SU": 395, "SRB_SU": 84, "CPU_SEC": 0.0, "EXCP_CNT": 12, "DASD_SSCH": 6, "CONNECT": 5, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "RACF", "PGMNAME": "IRRSSM00", "count": 3}, {"job": "GDPSAMGR", "CPU_SU": 379, "SRB_SU": 54, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "AMSA", "PGMNAME": "HSAPINIT", "count": 3}, {"job": "VLF", "CPU_SU": 278, "SRB_SU": 55, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "VLF", "PGMNAME": "COFMINIT", "count": 3}, {"job": "JES2AUX", "CPU_SU": 168, "SRB_SU": 16671, "CPU_SEC": 0.15, "EXCP_CNT": 36, "DASD_SSCH": 24, "CONNECT": 21, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "ANTAS000", "CPU_SU": 117, "SRB_SU": 167, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 30, "CONNECT": 28, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "ANTXAINI", "count": 3}, {"job": "TRACE", "CPU_SU": 84, "SRB_SU": 17370, "CPU_SEC": 0.15, "EXCP_CNT": 87, "DASD_SSCH": 81, "CONNECT": 78, "DISCON": 3, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "RESOLVER", "CPU_SU": 81, "SRB_SU": 31, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "EZBREINI", "PGMNAME": "EZBREINI", "count": 3}, {"job": "IM272CQS", "CPU_SU": 61, "SRB_SU": 2594, "CPU_SEC": 0.02, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "CQSINIT0", "count": 3}, {"job": "LLA", "CPU_SU": 55, "SRB_SU": 17, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "LLA", "PGMNAME": "CSVLLCRE", "count": 3}, {"job": "IEFSCHAS", "CPU_SU": 48, "SRB_SU": 75204, "CPU_SEC": 0.63, "EXCP_CNT": 3, "DASD_SSCH": 6, "CONNECT": 3, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "DEVMAN", "CPU_SU": 42, "SRB_SU": 30, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "DMOVS001", "count": 3}, {"job": "IM27DLIS", "CPU_SU": 29, "SRB_SU": 288, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "DFSMVRC0", "count": 3}, {"job": "CEA", "CPU_SU": 23, "SRB_SU": 18, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "CEAINIT", "count": 3}, {"job": "AXR", "CPU_SU": 15, "SRB_SU": 18, "CPU_SEC": 0.0, "EXCP_CNT": 70, "DASD_SSCH": 3, "CONNECT": 2, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "AXRINIT", "count": 3}, {"job": "PCAUTH", "CPU_SU": 9, "SRB_SU": 13909, "CPU_SEC": 0.12, "EXCP_CNT": 54, "DASD_SSCH": 3, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "", "count": 3}, {"job": "AXR04", "CPU_SU": 9, "SRB_SU": 6, "CPU_SEC": 0.0, "EXCP_CNT": 14, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "AXRRXTSS", "count": 1}, {"job": "DB2SIRLM", "CPU_SU": 2, "SRB_SU": 22540, "CPU_SEC": 0.19, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "", "PGMNAME": "DXRRLM00", "count": 3}, {"job": "IM27IRLM", "CPU_SU": 2, "SRB_SU": 1372, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "DXRJPROC", "PGMNAME": "DXRRLM00", "count": 3}, {"job": "PCIE", "CPU_SU": 0, "SRB_SU": 10, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IQPINIT", "count": 3}, {"job": "DUMPSRV", "CPU_SU": 0, "SRB_SU": 9, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "DUMPSRV", "PGMNAME": "IEAVTDSV", "count": 3}, {"job": "GTZ", "CPU_SU": 0, "SRB_SU": 9, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "GTZ", "PGMNAME": "GTZINIT", "count": 3}, {"job": "IM27DBRC", "CPU_SU": 0, "SRB_SU": 11, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "DFSMVRC0", "count": 3}, {"job": "SOF", "CPU_SU": 0, "SRB_SU": 7, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "SOF", "PGMNAME": "CREDISP0", "count": 2}, {"job": "BPXAS", "CPU_SU": 0, "SRB_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 3, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "STEPNAME": "IEFPROC", "PGMNAME": "IEFIIC", "count": 3}], "delay_analysis": [{"job": "SMSPDSE1", "PENDING": 1395, "DISCON": 19338, "CONNECT": 721512, "CPU_SU": 9558780, "count": 3}, {"job": "MSTJCL00", "PENDING": 271, "DISCON": 19, "CONNECT": 18452, "CPU_SU": 9039, "count": 3}, {"job": "TCPIP", "PENDING": 99, "DISCON": 1, "CONNECT": 49, "CPU_SU": 34428, "count": 3}, {"job": "XCFAS", "PENDING": 50, "DISCON": 1, "CONNECT": 8361, "CPU_SU": 64401, "count": 3}, {"job": "IXGLOGR", "PENDING": 46, "DISCON": 2, "CONNECT": 4871, "CPU_SU": 1059, "count": 3}, {"job": "JES2", "PENDING": 35, "DISCON": 40, "CONNECT": 19847, "CPU_SU": 271637, "count": 3}, {"job": "CONSOLE", "PENDING": 30, "DISCON": 183, "CONNECT": 13371, "CPU_SU": 99021299, "count": 3}, {"job": "SMS", "PENDING": 10, "DISCON": 0, "CONNECT": 1062, "CPU_SU": 5670, "count": 3}, {"job": "SMSPDSE", "PENDING": 9, "DISCON": 207, "CONNECT": 8452, "CPU_SU": 5929429, "count": 3}, {"job": "DB2SMSTR", "PENDING": 9, "DISCON": 116, "CONNECT": 4780, "CPU_SU": 106143, "count": 3}, {"job": "ZFS", "PENDING": 9, "DISCON": 52, "CONNECT": 4019, "CPU_SU": 18840, "count": 3}, {"job": "CATALOG", "PENDING": 4, "DISCON": 0, "CONNECT": 5301, "CPU_SU": 14510, "count": 3}, {"job": "ALLOCAS", "PENDING": 0, "DISCON": 9, "CONNECT": 195, "CPU_SU": 990, "count": 3}, {"job": "TRACE", "PENDING": 0, "DISCON": 3, "CONNECT": 78, "CPU_SU": 84, "count": 3}, {"job": "GRS", "PENDING": 0, "DISCON": 48, "CONNECT": 375, "CPU_SU": 41147389, "count": 3}, {"job": "ANTMAIN", "PENDING": 0, "DISCON": 8, "CONNECT": 1987, "CPU_SU": 9068, "count": 3}, {"job": "VMCF", "PENDING": 0, "DISCON": 3, "CONNECT": 78, "CPU_SU": 318072, "count": 3}, {"job": "C2POLICE", "PENDING": 0, "DISCON": 4, "CONNECT": 2682, "CPU_SU": 73870, "count": 3}, {"job": "AVZ1PROC", "PENDING": 0, "DISCON": 5, "CONNECT": 2952, "CPU_SU": 740081, "count": 3}], "window_timeline": [{"time_label": "D46 10:30", "CPU_SU": 53212001, "is_peak": true}, {"time_label": "D46 10:32", "CPU_SU": 0, "is_peak": false}, {"time_label": "D46 10:35", "CPU_SU": 0, "is_peak": false}, {"time_label": "D46 11:00", "CPU_SU": 53245469, "is_peak": false}, {"time_label": "D46 11:08", "CPU_SU": 0, "is_peak": false}, {"time_label": "D46 11:30", "CPU_SU": 53219874, "is_peak": false}]};
 const DATA_PEAKS_LOWS = {"CPU_SEC": {"peaks": [{"time": "D49 01:30", "value": 552.61}, {"time": "D49 11:30", "value": 546.54}, {"time": "D49 11:00", "value": 546.25}], "lows": [{"time": "D47 12:02", "value": 0.01}, {"time": "D48 11:39", "value": 0.01}, {"time": "D46 10:30", "value": 519.84}]}, "EXCP_CNT": {"peaks": [{"time": "D49 01:30", "value": 815940}, {"time": "D47 01:30", "value": 815184}, {"time": "D48 01:30", "value": 815140}], "lows": [{"time": "D49 11:37", "value": 1}, {"time": "D47 16:27", "value": 694}, {"time": "D47 04:30", "value": 30511}]}, "DASD_SSCH": {"peaks": [{"time": "D47 14:00", "value": 435074}, {"time": "D48 21:00", "value": 338809}, {"time": "D49 11:30", "value": 338705}], "lows": [{"time": "D46 10:35", "value": 1}, {"time": "D46 11:35", "value": 1}, {"time": "D46 12:35", "value": 1}]}, "CPU_SU": {"peaks": [{"time": "D49 11:30", "value": 55910730}, {"time": "D49 11:00", "value": 55899054}, {"time": "D49 10:30", "value": 55885724}], "lows": [{"time": "D47 01:32", "value": 1}, {"time": "D47 09:02", "value": 1}, {"time": "D48 09:38", "value": 1}]}, "SRB_SU": {"peaks": [{"time": "D49 01:30", "value": 9691196}, {"time": "D48 01:30", "value": 9559023}, {"time": "D47 01:30", "value": 9399720}], "lows": [{"time": "D47 16:27", "value": 1}, {"time": "D46 10:32", "value": 3}, {"time": "D46 12:38", "value": 3}]}};
+const DATA_JOB_SUMMARY_ALL = [{"job": "CONSOLE", "CPU_SU": 4978899930, "SRB_SU": 442465954, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 45732.77, "EXCP_CNT": 1334327, "DASD_SSCH": 670912, "CONNECT": 655181, "DISCON": 8971, "PENDING": 1470, "ZIIP_SEC": 0.0, "count": 147}, {"job": "GRS", "CPU_SU": 2065590396, "SRB_SU": 620641255, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 22660.6, "EXCP_CNT": 30870, "DASD_SSCH": 18816, "CONNECT": 18375, "DISCON": 2352, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "SMSPDSE1", "CPU_SU": 478687902, "SRB_SU": 65285457, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 4609.71, "EXCP_CNT": 2205, "DASD_SSCH": 36628356, "CONNECT": 35769802, "DISCON": 956461, "PENDING": 68591, "ZIIP_SEC": 0.0, "count": 147}, {"job": "SMSPDSE", "CPU_SU": 296681085, "SRB_SU": 59915665, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 3034.82, "EXCP_CNT": 441, "DASD_SSCH": 435352, "CONNECT": 425078, "DISCON": 10230, "PENDING": 441, "ZIIP_SEC": 0.0, "count": 147}, {"job": "RASP", "CPU_SU": 69244542, "SRB_SU": 55638685, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 1053.44, "EXCP_CNT": 441, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "AVZ1PROC", "CPU_SU": 35642521, "SRB_SU": 163161, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 301.01, "EXCP_CNT": 174986, "DASD_SSCH": 145432, "CONNECT": 141964, "DISCON": 15, "PENDING": 84, "ZIIP_SEC": 1.03, "count": 147}, {"job": "RMFGAT", "CPU_SU": 23571479, "SRB_SU": 110823, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 188.08, "EXCP_CNT": 1488, "DASD_SSCH": 11328, "CONNECT": 11000, "DISCON": 0, "PENDING": 5, "ZIIP_SEC": 11.69, "count": 147}, {"job": "VMCF", "CPU_SU": 15925606, "SRB_SU": 6477044, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 189.1, "EXCP_CNT": 9702, "DASD_SSCH": 3969, "CONNECT": 3822, "DISCON": 147, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "JES2", "CPU_SU": 13503878, "SRB_SU": 225794, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 115.82, "EXCP_CNT": 1039496, "DASD_SSCH": 1037052, "CONNECT": 1012686, "DISCON": 1380, "PENDING": 1949, "ZIIP_SEC": 0.0, "count": 147}, {"job": "WLM", "CPU_SU": 7750240, "SRB_SU": 1334292, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 76.63, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DB2SMSTR", "CPU_SU": 5152507, "SRB_SU": 162775, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 43.95, "EXCP_CNT": 320218, "DASD_SSCH": 240509, "CONNECT": 234776, "DISCON": 5716, "PENDING": 244, "ZIIP_SEC": 0.88, "count": 147}, {"job": "RMF", "CPU_SU": 4581344, "SRB_SU": 425188, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 42.24, "EXCP_CNT": 0, "DASD_SSCH": 588, "CONNECT": 477, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "C2POLICE", "CPU_SU": 4239175, "SRB_SU": 85947, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 36.48, "EXCP_CNT": 482535, "DASD_SSCH": 180922, "CONNECT": 176604, "DISCON": 248, "PENDING": 2766, "ZIIP_SEC": 0.0, "count": 147}, {"job": "XCFAS", "CPU_SU": 3117352, "SRB_SU": 4074684, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 60.67, "EXCP_CNT": 414796, "DASD_SSCH": 414796, "CONNECT": 405003, "DISCON": 147, "PENDING": 2892, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DB2SDBM1", "CPU_SU": 3062709, "SRB_SU": 136913, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 7.46, "EXCP_CNT": 2933, "DASD_SSCH": 7130, "CONNECT": 6946, "DISCON": 65, "PENDING": 7, "ZIIP_SEC": 19.53, "count": 147}, {"job": "C2PACMON", "CPU_SU": 2289209, "SRB_SU": 3582, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 19.34, "EXCP_CNT": 2574081, "DASD_SSCH": 5684, "CONNECT": 5439, "DISCON": 20, "PENDING": 312, "ZIIP_SEC": 0.0, "count": 147}, {"job": "OMVS", "CPU_SU": 1939453, "SRB_SU": 854771, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 23.57, "EXCP_CNT": 1936, "DASD_SSCH": 1507, "CONNECT": 1433, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "TCPIP", "CPU_SU": 1700784, "SRB_SU": 1355911, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 24.66, "EXCP_CNT": 355835, "DASD_SSCH": 2578, "CONNECT": 2431, "DISCON": 6, "PENDING": 2046, "ZIIP_SEC": 1.11, "count": 147}, {"job": "JES2MON", "CPU_SU": 1392579, "SRB_SU": 555430, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 16.42, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "SMF", "CPU_SU": 948535, "SRB_SU": 28907, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 8.25, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "ZFS", "CPU_SU": 925080, "SRB_SU": 215937, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 9.63, "EXCP_CNT": 344504, "DASD_SSCH": 202911, "CONNECT": 198073, "DISCON": 3840, "PENDING": 383, "ZIIP_SEC": 0.0, "count": 147}, {"job": "TN3270", "CPU_SU": 894149, "SRB_SU": 417654, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 11.07, "EXCP_CNT": 500, "DASD_SSCH": 500, "CONNECT": 410, "DISCON": 0, "PENDING": 61, "ZIIP_SEC": 0.0, "count": 147}, {"job": "CATALOG", "CPU_SU": 726290, "SRB_SU": 37493, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 6.44, "EXCP_CNT": 90555, "DASD_SSCH": 267412, "CONNECT": 261080, "DISCON": 202, "PENDING": 108, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DSFS", "CPU_SU": 523667, "SRB_SU": 137549, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 5.57, "EXCP_CNT": 8820, "DASD_SSCH": 8820, "CONNECT": 8526, "DISCON": 1, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "JESXCF", "CPU_SU": 508019, "SRB_SU": 262507, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 6.5, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "MSTJCL00", "CPU_SU": 463908, "SRB_SU": 582684, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 8.83, "EXCP_CNT": 23541, "DASD_SSCH": 901228, "CONNECT": 880037, "DISCON": 387, "PENDING": 24851, "ZIIP_SEC": 0.0, "count": 147}, {"job": "CSQ1MSTR", "CPU_SU": 459134, "SRB_SU": 55917, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 4.35, "EXCP_CNT": 172, "DASD_SSCH": 172, "CONNECT": 141, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "ANTMAIN", "CPU_SU": 445700, "SRB_SU": 91586, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 4.54, "EXCP_CNT": 0, "DASD_SSCH": 102026, "CONNECT": 99553, "DISCON": 918, "PENDING": 44, "ZIIP_SEC": 0.0, "count": 147}, {"job": "SMS", "CPU_SU": 280108, "SRB_SU": 17157, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 2.51, "EXCP_CNT": 388058, "DASD_SSCH": 53359, "CONNECT": 52036, "DISCON": 1, "PENDING": 455, "ZIIP_SEC": 0.0, "count": 147}, {"job": "BPXOINIT", "CPU_SU": 234175, "SRB_SU": 13966, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 2.09, "EXCP_CNT": 3234, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "VTAM", "CPU_SU": 207772, "SRB_SU": 148757, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 3.0, "EXCP_CNT": 432, "DASD_SSCH": 432, "CONNECT": 354, "DISCON": 0, "PENDING": 109, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DB2SDIST", "CPU_SU": 131213, "SRB_SU": 15313, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 1.24, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM272SCI", "CPU_SU": 91900, "SRB_SU": 9609, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.86, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IOSAS", "CPU_SU": 91286, "SRB_SU": 12741, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.88, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM27CTL", "CPU_SU": 85169, "SRB_SU": 32448, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 1.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "ICSF", "CPU_SU": 78761, "SRB_SU": 13462, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.78, "EXCP_CNT": 8, "DASD_SSCH": 9, "CONNECT": 8, "DISCON": 1, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IXGLOGR", "CPU_SU": 64029, "SRB_SU": 254170, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 2.69, "EXCP_CNT": 495, "DASD_SSCH": 493097, "CONNECT": 481470, "DISCON": 532, "PENDING": 2088, "ZIIP_SEC": 0.0, "count": 147}, {"job": "ALLOCAS", "CPU_SU": 48510, "SRB_SU": 1106880, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 8.82, "EXCP_CNT": 2205, "DASD_SSCH": 9849, "CONNECT": 9555, "DISCON": 441, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM272OM1", "CPU_SU": 44276, "SRB_SU": 7799, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.44, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM272RM1", "CPU_SU": 44098, "SRB_SU": 7730, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.45, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "GDPSAMGR", "CPU_SU": 18825, "SRB_SU": 2660, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.18, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "RACF", "CPU_SU": 14652, "SRB_SU": 4109, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.16, "EXCP_CNT": 157, "DASD_SSCH": 88, "CONNECT": 75, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "VLF", "CPU_SU": 14500, "SRB_SU": 2715, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.15, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "ANTAS000", "CPU_SU": 11149, "SRB_SU": 3713, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.12, "EXCP_CNT": 0, "DASD_SSCH": 3828, "CONNECT": 3690, "DISCON": 0, "PENDING": 29, "ZIIP_SEC": 0.0, "count": 147}, {"job": "JES2AUX", "CPU_SU": 8232, "SRB_SU": 834952, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 7.35, "EXCP_CNT": 1764, "DASD_SSCH": 1176, "CONNECT": 1029, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "TRACE", "CPU_SU": 4116, "SRB_SU": 870636, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 7.35, "EXCP_CNT": 4263, "DASD_SSCH": 3969, "CONNECT": 3822, "DISCON": 147, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "RESOLVER", "CPU_SU": 3913, "SRB_SU": 1552, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.06, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM272CQS", "CPU_SU": 3126, "SRB_SU": 127212, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 1.1, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "LLA", "CPU_SU": 2598, "SRB_SU": 876, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.04, "EXCP_CNT": 13, "DASD_SSCH": 17, "CONNECT": 16, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IEFSCHAS", "CPU_SU": 2352, "SRB_SU": 3764259, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 31.78, "EXCP_CNT": 147, "DASD_SSCH": 294, "CONNECT": 147, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DEVMAN", "CPU_SU": 2092, "SRB_SU": 1421, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.03, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM27DLIS", "CPU_SU": 1337, "SRB_SU": 14265, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.13, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "CEA", "CPU_SU": 1166, "SRB_SU": 877, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "TSO", "CPU_SU": 1125, "SRB_SU": 194, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 1, "DASD_SSCH": 1, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 36}, {"job": "PCAUTH", "CPU_SU": 441, "SRB_SU": 696541, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 5.88, "EXCP_CNT": 2646, "DASD_SSCH": 147, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IZUANG1", "CPU_SU": 220, "SRB_SU": 1, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 694, "DASD_SSCH": 11, "CONNECT": 10, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 1}, {"job": "DB2SIRLM", "CPU_SU": 137, "SRB_SU": 1112380, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 9.38, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "AXR", "CPU_SU": 116, "SRB_SU": 641, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 732, "DASD_SSCH": 21, "CONNECT": 17, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM27IRLM", "CPU_SU": 114, "SRB_SU": 68084, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.59, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "AXR04", "CPU_SU": 36, "SRB_SU": 24, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 57, "DASD_SSCH": 1, "CONNECT": 1, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 4}, {"job": "SOF", "CPU_SU": 5, "SRB_SU": 541, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "PCIE", "CPU_SU": 0, "SRB_SU": 487, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "DUMPSRV", "CPU_SU": 0, "SRB_SU": 493, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "GTZ", "CPU_SU": 0, "SRB_SU": 471, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "IM27DBRC", "CPU_SU": 0, "SRB_SU": 562, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.01, "EXCP_CNT": 0, "DASD_SSCH": 0, "CONNECT": 0, "DISCON": 0, "PENDING": 0, "ZIIP_SEC": 0.0, "count": 147}, {"job": "BPXAS", "CPU_SU": 0, "SRB_SU": 0, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 241, "CONNECT": 21, "DISCON": 0, "PENDING": 48, "ZIIP_SEC": 0.0, "count": 220}];
+const DATA_SERVCLS_BREAKDOWN = [{"serv_cls": "SYSTEM", "count": 3822, "CPU_SU": 7906846696, "CPU_SEC": 77362.78, "EXCP_CNT": 1912115, "MSO_SU": 0, "ZIIP_SEC": 0.0, "DASD_SSCH": 39947778, "CONNECT": 39010552}, {"serv_cls": "SYSSTC", "count": 5553, "CPU_SU": 113512026, "CPU_SEC": 1028.29, "EXCP_CNT": 5707173, "MSO_SU": 0, "ZIIP_SEC": 34.24, "DASD_SSCH": 1906762, "CONNECT": 1860536}];
+const DATA_DATE_BREAKDOWN = [{"date": "Day 46", "count": 1717, "CPU_SU": 1442977377, "CPU_SEC": 14097.72, "EXCP_CNT": 917964, "MSO_SU": 0, "ZIIP_SEC": 6.37, "CONNECT": 7382582, "type2_count": 1378, "DASD_SSCH": 7560230}, {"date": "Day 47", "count": 3058, "CPU_SU": 2598877215, "CPU_SEC": 25400.42, "EXCP_CNT": 2426639, "MSO_SU": 0, "ZIIP_SEC": 11.35, "CONNECT": 13375331, "type2_count": 2459, "DASD_SSCH": 13697166}, {"date": "Day 48", "count": 3067, "CPU_SU": 2641332861, "CPU_SEC": 25818.47, "EXCP_CNT": 2669152, "MSO_SU": 0, "ZIIP_SEC": 11.1, "CONNECT": 13372328, "type2_count": 2468, "DASD_SSCH": 13694098}, {"date": "Day 49", "count": 1533, "CPU_SU": 1337171269, "CPU_SEC": 13074.46, "EXCP_CNT": 1605533, "MSO_SU": 0, "ZIIP_SEC": 5.42, "CONNECT": 6740847, "type2_count": 1233, "DASD_SSCH": 6903046}];
+const DATA_TYPE_BREAKDOWN = [{"type": "TYPE=6", "count": 1617, "CPU_SU": 7905093112, "CPU_SEC": 77341.62, "EXCP_CNT": 1389011, "DASD_SSCH": 37772840, "CONNECT": 36886811, "ZIIP_SEC": 0.0}, {"type": "TYPE=2", "count": 7538, "CPU_SU": 115265610, "CPU_SEC": 1049.45, "EXCP_CNT": 6230277, "DASD_SSCH": 4081459, "CONNECT": 3984256, "ZIIP_SEC": 34.24}, {"type": "TYPE=4", "count": 220, "CPU_SU": 0, "CPU_SEC": 0.0, "EXCP_CNT": 0, "DASD_SSCH": 241, "CONNECT": 21, "ZIIP_SEC": 0.0}];
+const DATA_ZIIP_JOBS = [{"job": "DB2SDBM1", "CPU_SU": 3062709, "SRB_SU": 136913, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 7.46, "EXCP_CNT": 2933, "DASD_SSCH": 7130, "CONNECT": 6946, "DISCON": 65, "PENDING": 7, "ZIIP_SEC": 19.53, "count": 147}, {"job": "RMFGAT", "CPU_SU": 23571479, "SRB_SU": 110823, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 188.08, "EXCP_CNT": 1488, "DASD_SSCH": 11328, "CONNECT": 11000, "DISCON": 0, "PENDING": 5, "ZIIP_SEC": 11.69, "count": 147}, {"job": "TCPIP", "CPU_SU": 1700784, "SRB_SU": 1355911, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 24.66, "EXCP_CNT": 355835, "DASD_SSCH": 2578, "CONNECT": 2431, "DISCON": 6, "PENDING": 2046, "ZIIP_SEC": 1.11, "count": 147}, {"job": "AVZ1PROC", "CPU_SU": 35642521, "SRB_SU": 163161, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 301.01, "EXCP_CNT": 174986, "DASD_SSCH": 145432, "CONNECT": 141964, "DISCON": 15, "PENDING": 84, "ZIIP_SEC": 1.03, "count": 147}, {"job": "DB2SMSTR", "CPU_SU": 5152507, "SRB_SU": 162775, "IO_SU": 0, "MSO_SU": 0, "CPU_SEC": 43.95, "EXCP_CNT": 320218, "DASD_SSCH": 240509, "CONNECT": 234776, "DISCON": 5716, "PENDING": 244, "ZIIP_SEC": 0.88, "count": 147}];
+const DATA_TOP20_DASD = [{"job": "SMSPDSE1", "DASD_SSCH": 36628356, "EXCP_CNT": 2205, "count": 147}, {"job": "JES2", "DASD_SSCH": 1037052, "EXCP_CNT": 1039496, "count": 147}, {"job": "MSTJCL00", "DASD_SSCH": 901228, "EXCP_CNT": 23541, "count": 147}, {"job": "CONSOLE", "DASD_SSCH": 670912, "EXCP_CNT": 1334327, "count": 147}, {"job": "IXGLOGR", "DASD_SSCH": 493097, "EXCP_CNT": 495, "count": 147}, {"job": "SMSPDSE", "DASD_SSCH": 435352, "EXCP_CNT": 441, "count": 147}, {"job": "XCFAS", "DASD_SSCH": 414796, "EXCP_CNT": 414796, "count": 147}, {"job": "CATALOG", "DASD_SSCH": 267412, "EXCP_CNT": 90555, "count": 147}, {"job": "DB2SMSTR", "DASD_SSCH": 240509, "EXCP_CNT": 320218, "count": 147}, {"job": "ZFS", "DASD_SSCH": 202911, "EXCP_CNT": 344504, "count": 147}, {"job": "C2POLICE", "DASD_SSCH": 180922, "EXCP_CNT": 482535, "count": 147}, {"job": "AVZ1PROC", "DASD_SSCH": 145432, "EXCP_CNT": 174986, "count": 147}, {"job": "ANTMAIN", "DASD_SSCH": 102026, "EXCP_CNT": 0, "count": 147}, {"job": "SMS", "DASD_SSCH": 53359, "EXCP_CNT": 388058, "count": 147}, {"job": "GRS", "DASD_SSCH": 18816, "EXCP_CNT": 30870, "count": 147}, {"job": "RMFGAT", "DASD_SSCH": 11328, "EXCP_CNT": 1488, "count": 147}, {"job": "ALLOCAS", "DASD_SSCH": 9849, "EXCP_CNT": 2205, "count": 147}, {"job": "DSFS", "DASD_SSCH": 8820, "EXCP_CNT": 8820, "count": 147}, {"job": "DB2SDBM1", "DASD_SSCH": 7130, "EXCP_CNT": 2933, "count": 147}, {"job": "C2PACMON", "DASD_SSCH": 5684, "EXCP_CNT": 2574081, "count": 147}];
+const DATA_TOP20_CONNECT = [{"job": "SMSPDSE1", "CONNECT": 35769802, "DISCON": 956461, "PENDING": 68591, "count": 147}, {"job": "JES2", "CONNECT": 1012686, "DISCON": 1380, "PENDING": 1949, "count": 147}, {"job": "MSTJCL00", "CONNECT": 880037, "DISCON": 387, "PENDING": 24851, "count": 147}, {"job": "CONSOLE", "CONNECT": 655181, "DISCON": 8971, "PENDING": 1470, "count": 147}, {"job": "IXGLOGR", "CONNECT": 481470, "DISCON": 532, "PENDING": 2088, "count": 147}, {"job": "SMSPDSE", "CONNECT": 425078, "DISCON": 10230, "PENDING": 441, "count": 147}, {"job": "XCFAS", "CONNECT": 405003, "DISCON": 147, "PENDING": 2892, "count": 147}, {"job": "CATALOG", "CONNECT": 261080, "DISCON": 202, "PENDING": 108, "count": 147}, {"job": "DB2SMSTR", "CONNECT": 234776, "DISCON": 5716, "PENDING": 244, "count": 147}, {"job": "ZFS", "CONNECT": 198073, "DISCON": 3840, "PENDING": 383, "count": 147}, {"job": "C2POLICE", "CONNECT": 176604, "DISCON": 248, "PENDING": 2766, "count": 147}, {"job": "AVZ1PROC", "CONNECT": 141964, "DISCON": 15, "PENDING": 84, "count": 147}, {"job": "ANTMAIN", "CONNECT": 99553, "DISCON": 918, "PENDING": 44, "count": 147}, {"job": "SMS", "CONNECT": 52036, "DISCON": 1, "PENDING": 455, "count": 147}, {"job": "GRS", "CONNECT": 18375, "DISCON": 2352, "PENDING": 0, "count": 147}, {"job": "RMFGAT", "CONNECT": 11000, "DISCON": 0, "PENDING": 5, "count": 147}, {"job": "ALLOCAS", "CONNECT": 9555, "DISCON": 441, "PENDING": 0, "count": 147}, {"job": "DSFS", "CONNECT": 8526, "DISCON": 1, "PENDING": 0, "count": 147}, {"job": "DB2SDBM1", "CONNECT": 6946, "DISCON": 65, "PENDING": 7, "count": 147}, {"job": "C2PACMON", "CONNECT": 5439, "DISCON": 20, "PENDING": 312, "count": 147}];
 
 // ===== MUTABLE DATA REFERENCES =====
 let currentData = {
@@ -532,7 +563,10 @@ let currentData = {
   trans_time: DATA_TRANS_TIME, trans_servcls: DATA_TRANS_SERVCLS, trans_date: DATA_TRANS_DATE,
   ts_detailed: DATA_TS_DETAILED, interval_jobs: DATA_INTERVAL_JOBS,
   r4ha_series: DATA_R4HA_SERIES, r4ha_peaks: DATA_R4HA_PEAKS,
-  r4ha_peak_detail: DATA_R4HA_PEAK_DETAIL, peaks_lows: DATA_PEAKS_LOWS
+  r4ha_peak_detail: DATA_R4HA_PEAK_DETAIL, peaks_lows: DATA_PEAKS_LOWS,
+  job_summary_all: DATA_JOB_SUMMARY_ALL, servcls_breakdown: DATA_SERVCLS_BREAKDOWN,
+  date_breakdown: DATA_DATE_BREAKDOWN, type_breakdown: DATA_TYPE_BREAKDOWN,
+  ziip_jobs: DATA_ZIIP_JOBS, top20_dasd: DATA_TOP20_DASD, top20_connect: DATA_TOP20_CONNECT
 };
 
 const chartInstances = {};
@@ -556,18 +590,286 @@ function resetZoom(id) { if (chartInstances[id]) chartInstances[id].resetZoom();
 
 function renderKPIs() {
   const k = currentData.kpis;
-  document.getElementById('kpiGrid').innerHTML = [
-    { label: 'Total Records', value: fmtFull(k.total_records), sub: 'SMF 30 Subtype 2' },
-    { label: 'Total CPU Seconds', value: fmt(k.total_cpu_sec), sub: fmtFull(k.total_cpu_sec) + ' sec' },
-    { label: 'Total EXCP Count', value: fmt(k.total_excp_cnt), sub: fmtFull(k.total_excp_cnt) + ' I/O ops' },
-    { label: 'Total DASD SSCH', value: fmt(k.total_dasd_ssch), sub: fmtFull(k.total_dasd_ssch) },
-    { label: 'Unique Jobs', value: k.unique_jobs, sub: k.unique_jobs + ' distinct' },
-    { label: 'Total CPU Service Units', value: fmt(k.total_cpu_su), sub: fmtFull(k.total_cpu_su) + ' SU' },
-    { label: 'Total zIIP Seconds', value: fmt(k.total_ziip_sec), sub: fmtFull(k.total_ziip_sec) + ' sec' },
-    { label: 'Total Memory SU (MSO)', value: fmt(k.total_mso_su), sub: fmtFull(k.total_mso_su) + ' MSO-SU' },
-    { label: 'Avg I/O Connect Time', value: fmt(k.avg_connect), sub: fmtFull(k.avg_connect) + ' ms avg' },
-    { label: 'Ended Transactions', value: fmtFull(k.ended_transactions), sub: 'TYPE=2 completions' }
-  ].map(c => `<div class="kpi-card"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.value}</div><div class="kpi-sub">${c.sub}</div></div>`).join('');
+  const kpis = [
+    { label: 'Total Records', value: fmtFull(k.total_records), sub: 'SMF 30 Subtype 2', drill: 'kpiDrillRecords' },
+    { label: 'Total CPU Seconds', value: fmt(k.total_cpu_sec), sub: fmtFull(k.total_cpu_sec) + ' sec', drill: 'kpiDrillCpuSec' },
+    { label: 'Total EXCP Count', value: fmt(k.total_excp_cnt), sub: fmtFull(k.total_excp_cnt) + ' I/O ops', drill: 'kpiDrillExcp' },
+    { label: 'Total DASD SSCH', value: fmt(k.total_dasd_ssch), sub: fmtFull(k.total_dasd_ssch), drill: 'kpiDrillDasd' },
+    { label: 'Unique Jobs', value: k.unique_jobs, sub: k.unique_jobs + ' distinct', drill: 'kpiDrillJobs' },
+    { label: 'Total CPU Service Units', value: fmt(k.total_cpu_su), sub: fmtFull(k.total_cpu_su) + ' SU', drill: 'kpiDrillCpuSu' },
+    { label: 'Total zIIP Seconds', value: fmt(k.total_ziip_sec), sub: fmtFull(k.total_ziip_sec) + ' sec', drill: 'kpiDrillZiip' },
+    { label: 'Total Memory SU (MSO)', value: fmt(k.total_mso_su), sub: fmtFull(k.total_mso_su) + ' MSO-SU', drill: 'kpiDrillMso' },
+    { label: 'Avg I/O Connect Time', value: fmt(k.avg_connect), sub: fmtFull(k.avg_connect) + ' ms avg', drill: 'kpiDrillConnect' },
+    { label: 'Ended Transactions', value: fmtFull(k.ended_transactions), sub: 'TYPE=2 completions', drill: 'kpiDrillTrans' }
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(c =>
+    `<div class="kpi-card" onclick="${c.drill}()"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.value}</div><div class="kpi-sub">${c.sub}</div><div class="kpi-click-hint">\u{1F50D} Click for details</div></div>`
+  ).join('');
+}
+
+// ===== KPI DRILL-DOWN SYSTEM =====
+let kpiDrillChartInstances = [];
+let kpiDrillAllRows = [];
+
+function closeKpiDrill() {
+  document.getElementById('kpiDrillOverlay').classList.remove('active');
+  kpiDrillChartInstances.forEach(c => { try { c.destroy(); } catch(e){} });
+  kpiDrillChartInstances = [];
+  kpiDrillAllRows = [];
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeKpiDrill(); closeDrillDown(); } });
+
+function openKpiDrill(title, subtitle, summaryItems, chartConfigs, tableTitle, tableHeaders, tableRows) {
+  closeKpiDrill();
+  document.getElementById('kpiDrillTitle').textContent = title;
+  document.getElementById('kpiDrillSubtitle').textContent = subtitle;
+  document.getElementById('kpiDrillSummary').innerHTML = summaryItems.map(s =>
+    `<div class="drill-kpi"><div class="dk-label">${s.l}</div><div class="dk-value">${s.v}</div></div>`
+  ).join('');
+
+  const chartsDiv = document.getElementById('kpiDrillCharts');
+  chartsDiv.innerHTML = '';
+  chartConfigs.forEach((cfg, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'height:220px;background:var(--bg);border-radius:8px;padding:8px;';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'kpiDrillChart' + i;
+    wrap.appendChild(canvas);
+    chartsDiv.appendChild(wrap);
+    const inst = new Chart(canvas.getContext('2d'), cfg);
+    kpiDrillChartInstances.push(inst);
+  });
+
+  document.getElementById('kpiDrillTableTitle').textContent = tableTitle;
+  document.getElementById('kpiDrillThead').innerHTML = '<tr>' + tableHeaders.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  kpiDrillAllRows = tableRows;
+  document.getElementById('kpiDrillSearch').value = '';
+  renderKpiDrillTableRows(tableRows);
+  document.getElementById('kpiDrillOverlay').classList.add('active');
+}
+
+function renderKpiDrillTableRows(rows) {
+  document.getElementById('kpiDrillTbody').innerHTML = rows.slice(0, 100).map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('');
+}
+
+function filterKpiDrillTable() {
+  const q = document.getElementById('kpiDrillSearch').value.toLowerCase().trim();
+  if (!q) { renderKpiDrillTableRows(kpiDrillAllRows); return; }
+  const filtered = kpiDrillAllRows.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
+  renderKpiDrillTableRows(filtered);
+}
+
+const miniChartOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', callback: v => fmt(v) }, grid: { color: 'rgba(148,163,184,0.08)' } } } };
+const miniPieOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', padding: 8, font: { size: 10 }, boxWidth: 10 } } } };
+
+// 1. Total Records KPI drill-down
+function kpiDrillRecords() {
+  const k = currentData.kpis;
+  const td = currentData.type_breakdown || currentData.type_dist;
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const dd = currentData.date_breakdown || currentData.date_dist;
+  const jobs = (currentData.job_summary_all || []).slice(0, 20);
+  const tl = {'TYPE=2':'TYPE=2 (Job Step)','TYPE=4':'TYPE=4 (OMVS)','TYPE=6':'TYPE=6 (Addr Space)'};
+  openKpiDrill(
+    '\u{1F4CA} Total Records Analysis', k.total_records.toLocaleString() + ' records across ' + k.date_range,
+    [{ l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Unique Jobs', v: k.unique_jobs }, { l: 'Date Range', v: k.date_range }, { l: 'System', v: k.smfid }],
+    [
+      { type: 'pie', data: { labels: td.map(d => tl[d.type] || d.type), datasets: [{ data: td.map(d => d.count), backgroundColor: [COLORS[2], COLORS[0], COLORS[1]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.count), backgroundColor: [COLORS[0], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'bar', data: { labels: dd.map(d => d.date), datasets: [{ label: 'Records', data: dd.map(d => d.count), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: miniChartOpts },
+    ],
+    'Top 20 Jobs by Record Count',
+    ['#', 'Job Name', 'Records', 'CPU-SU', 'CPU Sec', 'EXCP'],
+    jobs.map((j, i) => [i + 1, j.job, fmtFull(j.count), fmt(j.CPU_SU), j.CPU_SEC, fmt(j.EXCP_CNT)])
+  );
+}
+
+// 2. Total CPU Seconds KPI drill-down
+function kpiDrillCpuSec() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.CPU_SEC - a.CPU_SEC);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BB} CPU Seconds Analysis', fmtFull(k.total_cpu_sec) + ' total CPU seconds',
+    [{ l: 'Total CPU Sec', v: fmt(k.total_cpu_sec) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job CPU Sec', v: top20[0] ? fmt(top20[0].CPU_SEC) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'CPU Sec', data: top20.map(j => j.CPU_SEC), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.CPU_SEC), backgroundColor: [COLORS[1], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'CPU Sec', data: ts.map(d => d.CPU_SEC), borderColor: COLORS[1], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by CPU Seconds',
+    ['#', 'Job Name', 'CPU Sec', 'CPU-SU', 'EXCP', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, j.CPU_SEC, fmt(j.CPU_SU), fmt(j.EXCP_CNT), j.count])
+  );
+}
+
+// 3. Total EXCP Count KPI drill-down
+function kpiDrillExcp() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.EXCP_CNT - a.EXCP_CNT);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BE} EXCP Count Analysis', fmtFull(k.total_excp_cnt) + ' total I/O operations',
+    [{ l: 'Total EXCP', v: fmt(k.total_excp_cnt) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job EXCP', v: top20[0] ? fmt(top20[0].EXCP_CNT) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'EXCP', data: top20.map(j => j.EXCP_CNT), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.EXCP_CNT), backgroundColor: [COLORS[4], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'EXCP', data: ts.map(d => d.EXCP_CNT), borderColor: COLORS[4], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by EXCP Count',
+    ['#', 'Job Name', 'EXCP Count', 'DASD SSCH', 'CPU Sec', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.EXCP_CNT), fmt(j.DASD_SSCH), j.CPU_SEC, j.count])
+  );
+}
+
+// 4. Total DASD SSCH KPI drill-down
+function kpiDrillDasd() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.DASD_SSCH - a.DASD_SSCH);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BD} DASD SSCH Analysis', fmtFull(k.total_dasd_ssch) + ' total DASD start subchannel operations',
+    [{ l: 'Total DASD SSCH', v: fmt(k.total_dasd_ssch) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job DASD', v: top20[0] ? fmt(top20[0].DASD_SSCH) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'DASD SSCH', data: top20.map(j => j.DASD_SSCH), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.DASD_SSCH || 0), backgroundColor: [COLORS[2], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'DASD SSCH', data: ts.map(d => d.DASD_SSCH), borderColor: COLORS[2], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by DASD SSCH',
+    ['#', 'Job Name', 'DASD SSCH', 'EXCP Count', 'Connect', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.DASD_SSCH), fmt(j.EXCP_CNT), fmt(j.CONNECT), j.count])
+  );
+}
+
+// 5. Unique Jobs KPI drill-down
+function kpiDrillJobs() {
+  const k = currentData.kpis;
+  const jobs = currentData.job_summary_all || [];
+  const top20 = jobs.slice(0, 20);
+  openKpiDrill(
+    '\u{1F4CB} Unique Jobs Analysis', k.unique_jobs + ' distinct job names',
+    [{ l: 'Unique Jobs', v: k.unique_jobs }, { l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Avg Records/Job', v: Math.round(k.total_records / k.unique_jobs) }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'Total SU', data: top20.map(j => j.CPU_SU + j.SRB_SU), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+    ],
+    'All ' + k.unique_jobs + ' Jobs with Aggregate Metrics',
+    ['#', 'Job Name', 'Records', 'CPU-SU', 'SRB-SU', 'CPU Sec', 'EXCP', 'DASD SSCH'],
+    jobs.map((j, i) => [i + 1, j.job, j.count, fmt(j.CPU_SU), fmt(j.SRB_SU), j.CPU_SEC, fmt(j.EXCP_CNT), fmt(j.DASD_SSCH)])
+  );
+}
+
+// 6. Total CPU Service Units KPI drill-down
+function kpiDrillCpuSu() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).slice(0, 20);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{2699}\u{FE0F} CPU Service Units Analysis', fmtFull(k.total_cpu_su) + ' total CPU-SU, ' + fmtFull(k.total_srb_su) + ' total SRB-SU',
+    [{ l: 'Total CPU-SU', v: fmt(k.total_cpu_su) }, { l: 'Total SRB-SU', v: fmt(k.total_srb_su) }, { l: 'CPU+SRB', v: fmt(k.total_cpu_su + k.total_srb_su) }],
+    [
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [{ label: 'CPU-SU', data: jobs.map(j => j.CPU_SU), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [
+        { label: 'CPU-SU', data: jobs.map(j => j.CPU_SU), backgroundColor: COLORS[0], borderWidth: 0 },
+        { label: 'SRB-SU', data: jobs.map(j => j.SRB_SU), backgroundColor: COLORS[1], borderWidth: 0 }
+      ] }, options: { ...miniChartOpts, scales: { ...miniChartOpts.scales, x: { ...miniChartOpts.scales.x, stacked: true }, y: { ...miniChartOpts.scales.y, stacked: true } } } },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'CPU-SU', data: ts.map(d => d.CPU_SU), borderColor: COLORS[0], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'Top 20 Jobs by CPU Service Units',
+    ['#', 'Job Name', 'CPU-SU', 'SRB-SU', 'IO-SU', 'Total SU', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.CPU_SU), fmt(j.SRB_SU), fmt(j.IO_SU), fmt(j.CPU_SU + j.SRB_SU + j.IO_SU), j.count])
+  );
+}
+
+// 7. Total zIIP Seconds KPI drill-down
+function kpiDrillZiip() {
+  const k = currentData.kpis;
+  const zJobs = currentData.ziip_jobs || (currentData.job_summary_all || []).filter(j => j.ZIIP_SEC > 0).sort((a, b) => b.ZIIP_SEC - a.ZIIP_SEC);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{26A1} zIIP Seconds Analysis', fmtFull(k.total_ziip_sec) + ' total zIIP seconds',
+    [{ l: 'Total zIIP Sec', v: fmt(k.total_ziip_sec) }, { l: 'Jobs Using zIIP', v: zJobs.length }, { l: 'Top zIIP Job', v: zJobs[0] ? zJobs[0].job : 'None' }],
+    [
+      { type: 'bar', data: { labels: zJobs.map(j => j.job), datasets: [{ label: 'zIIP Sec', data: zJobs.map(j => j.ZIIP_SEC), backgroundColor: COLORS[9], borderWidth: 0 }] }, options: miniChartOpts },
+      { type: 'bar', data: { labels: zJobs.map(j => j.job), datasets: [
+        { label: 'zIIP Sec', data: zJobs.map(j => j.ZIIP_SEC), backgroundColor: COLORS[9], borderWidth: 0 },
+        { label: 'CPU Sec', data: zJobs.map(j => j.CPU_SEC), backgroundColor: COLORS[0], borderWidth: 0 }
+      ] }, options: miniChartOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'zIIP Sec', data: ts.map(d => d.ZIIP_SEC), borderColor: COLORS[9], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs with Non-Zero zIIP Usage',
+    ['#', 'Job Name', 'zIIP Sec', 'CPU Sec', 'zIIP/CPU Ratio', 'Records'],
+    zJobs.map((j, i) => [i + 1, j.job, j.ZIIP_SEC, j.CPU_SEC, j.CPU_SEC > 0 ? (j.ZIIP_SEC / j.CPU_SEC * 100).toFixed(1) + '%' : 'N/A', j.count])
+  );
+}
+
+// 8. Total Memory SU (MSO) KPI drill-down
+function kpiDrillMso() {
+  const k = currentData.kpis;
+  openKpiDrill(
+    '\u{1F4BE} Memory Service Units (MSO) Analysis', 'MSO_SU total: ' + fmtFull(k.total_mso_su),
+    [{ l: 'Total MSO-SU', v: fmt(k.total_mso_su) }, { l: 'Status', v: k.total_mso_su === 0 ? 'All Zero' : 'Active' }],
+    [],
+    k.total_mso_su === 0 ? 'Note: MSO_SU is zero for all records in this dataset' : 'Jobs by MSO_SU',
+    ['#', 'Job Name', 'MSO-SU', 'CPU-SU', 'Records'],
+    (currentData.job_summary_all || []).slice(0, 20).map((j, i) => [i + 1, j.job, fmt(j.MSO_SU), fmt(j.CPU_SU), j.count])
+  );
+  if (k.total_mso_su === 0) {
+    document.getElementById('kpiDrillTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--accent4);font-size:14px;">\u{26A0}\u{FE0F} MSO_SU values are zero in this dataset. This is common when the WLM service definition does not assign memory service units to address spaces. The MSO component of service units measures main storage usage, but many installations leave this unconfigured.</td></tr>';
+  }
+}
+
+// 9. Avg I/O Connect Time KPI drill-down
+function kpiDrillConnect() {
+  const k = currentData.kpis;
+  const jobs = currentData.top20_connect || (currentData.job_summary_all || []).sort((a, b) => b.CONNECT - a.CONNECT).slice(0, 20);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{23F1}\u{FE0F} I/O Connect Time Analysis', 'Average connect time: ' + fmtFull(k.avg_connect) + ' ms',
+    [{ l: 'Avg Connect', v: fmt(k.avg_connect) }, { l: 'Total Connect', v: fmt(k.total_connect) }, { l: 'Total Discon', v: fmt(k.total_discon) }, { l: 'Total Pending', v: fmt(k.total_pending) }],
+    [
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [{ label: 'Connect', data: jobs.map(j => j.CONNECT), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [
+        { label: 'Connect', data: jobs.map(j => j.CONNECT), backgroundColor: COLORS[0], borderWidth: 0 },
+        { label: 'Discon', data: jobs.map(j => j.DISCON), backgroundColor: COLORS[3], borderWidth: 0 },
+        { label: 'Pending', data: jobs.map(j => j.PENDING), backgroundColor: COLORS[4], borderWidth: 0 }
+      ] }, options: { ...miniChartOpts, scales: { ...miniChartOpts.scales, x: { ...miniChartOpts.scales.x, stacked: true }, y: { ...miniChartOpts.scales.y, stacked: true } } } },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [
+        { label: 'Connect', data: ts.map(d => d.CONNECT), borderColor: COLORS[0], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+        { label: 'Discon', data: ts.map(d => d.DISCON), borderColor: COLORS[3], backgroundColor: 'transparent', borderWidth: 1.5, tension: 0.3, pointRadius: 0 },
+        { label: 'Pending', data: ts.map(d => d.PENDING), borderColor: COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+      ] }, options: { ...miniChartOpts, plugins: { ...miniChartOpts.plugins, legend: { display: true, labels: { color: '#e2e8f0', font: { size: 9 }, boxWidth: 8 } } } } },
+    ],
+    'Top 20 Jobs by Connect Time',
+    ['#', 'Job Name', 'Connect', 'Disconnect', 'Pending', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.CONNECT), fmt(j.DISCON), fmt(j.PENDING), j.count])
+  );
+}
+
+// 10. Ended Transactions KPI drill-down
+function kpiDrillTrans() {
+  const k = currentData.kpis;
+  const td = currentData.type_breakdown || currentData.type_dist;
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const dd = currentData.date_breakdown || currentData.date_dist;
+  const ts = downsample(currentData.trans_time, 60);
+  openKpiDrill(
+    '\u{1F4C3} Ended Transactions Analysis', fmtFull(k.ended_transactions) + ' TYPE=2 completions',
+    [{ l: 'Ended (TYPE=2)', v: fmtFull(k.ended_transactions) }, { l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Completion Rate', v: (k.ended_transactions / k.total_records * 100).toFixed(1) + '%' }],
+    [
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'TYPE=2', data: ts.map(d => d.type2), borderColor: COLORS[5], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.count), backgroundColor: [COLORS[5], COLORS[0]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'bar', data: { labels: dd.map(d => d.date), datasets: [{ label: 'TYPE=2', data: dd.map(d => d.type2_count), backgroundColor: COLORS[5], borderWidth: 0 }] }, options: miniChartOpts },
+    ],
+    'Transaction Breakdown by Type',
+    ['Record Type', 'Count', '% of Total', 'CPU-SU', 'CPU Sec', 'EXCP'],
+    td.map(t => [t.type, fmtFull(t.count), (t.count / k.total_records * 100).toFixed(1) + '%', fmt(t.CPU_SU), t.CPU_SEC, fmt(t.EXCP_CNT)])
+  );
 }
 
 function createChart(id, config) {
@@ -636,7 +938,6 @@ function openDrillDown(timeLabel) {
   document.getElementById('drillOverlay').classList.add('active');
 }
 function closeDrillDown() { document.getElementById('drillOverlay').classList.remove('active'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrillDown(); });
 
 function makeClickHandler(labelsArr) {
   return function(evt, elements) {
@@ -1235,12 +1536,39 @@ function aggregateRecords(records) {
     peaksLows[m] = {peaks:peaks3,lows:lows3};
   }
 
+  // Phase 8: Compute additional data for KPI drill-downs
+  const jobSummaryAll = Object.entries(jobSu).sort((a,b)=>b[1].CPU_SU-a[1].CPU_SU).map(([n,v])=>{
+    const zi=jobZiip[n]||{ZIIP_SEC:0,CPU_SEC:0}; const io=jobIo[n]||{EXCP_CNT:0,DASD_SSCH:0,CONNECT:0};
+    const deep=jobIoDeep[n]||{CONNECT:0,DISCON:0,PENDING:0};
+    return {job:n,CPU_SU:v.CPU_SU,SRB_SU:v.SRB_SU,IO_SU:v.IO_SU,MSO_SU:v.MSO_SU,CPU_SEC:Math.round((jobCpuSec[n]||0)*100)/100,
+      EXCP_CNT:io.EXCP_CNT,DASD_SSCH:io.DASD_SSCH,CONNECT:deep.CONNECT,DISCON:deep.DISCON,PENDING:deep.PENDING,
+      ZIIP_SEC:Math.round(zi.ZIIP_SEC*100)/100,count:v.count};
+  });
+  const servclsBreakdown = servClsArr.map(s=>{
+    const recs=records.filter(r=>(r.SERV_CLS||'UNKNOWN')===s.serv_cls);
+    return {...s,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0),CONNECT:recs.reduce((a,r)=>a+r.CONNECT,0)};
+  });
+  const dateBreakdown = dateArr.map(d=>{
+    const dayNum=parseInt(d.date.replace('Day ',''));
+    const recs=records.filter(r=>r.DATE===dayNum);
+    return {...d,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0)};
+  });
+  const typeBreakdown = typeArr.map(t=>{
+    const recs=records.filter(r=>(r.TYPE||'UNKNOWN')===t.type);
+    return {...t,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0),CONNECT:recs.reduce((a,r)=>a+r.CONNECT,0),ZIIP_SEC:Math.round(recs.reduce((a,r)=>a+r.ZIIP_SEC,0)*100)/100};
+  });
+  const ziipJobsArr = jobSummaryAll.filter(j=>j.ZIIP_SEC>0).sort((a,b)=>b.ZIIP_SEC-a.ZIIP_SEC);
+  const top20Dasd = [...jobSummaryAll].sort((a,b)=>b.DASD_SSCH-a.DASD_SSCH).slice(0,20).map(j=>({job:j.job,DASD_SSCH:j.DASD_SSCH,EXCP_CNT:j.EXCP_CNT,count:j.count}));
+  const top20Connect = [...jobSummaryAll].sort((a,b)=>b.CONNECT-a.CONNECT).slice(0,20).map(j=>({job:j.job,CONNECT:j.CONNECT,DISCON:j.DISCON,PENDING:j.PENDING,count:j.count}));
+
   return {
     kpis,top20_su:top20Su,top20_io:top20Io,top20_cpu_sec:top20CpuSec,serv_cls:servClsArr,type_dist:typeArr,
     time_series:timeSeries,date_dist:dateArr,sample,top_programs:topPgm,top20_mso:top20Mso,top20_ziip:top20Ziip,
     top20_io_deep:top20IoDeep,top20_total_su:top20TotalSu,trans_time:transTimeArr,trans_servcls:transServclsArr,trans_date:transDateArr,
     ts_detailed:tsDetailed,interval_jobs:intervalJobs,r4ha_series:r4haSeries,r4ha_peaks:r4haPeaks,
-    r4ha_peak_detail:r4haPeakDetail,peaks_lows:peaksLows
+    r4ha_peak_detail:r4haPeakDetail,peaks_lows:peaksLows,
+    job_summary_all:jobSummaryAll,servcls_breakdown:servclsBreakdown,date_breakdown:dateBreakdown,
+    type_breakdown:typeBreakdown,ziip_jobs:ziipJobsArr,top20_dasd:top20Dasd,top20_connect:top20Connect
   };
 }
 

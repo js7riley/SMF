@@ -26,13 +26,21 @@ data_block = "\n".join([
     js_const("DATA_TRANS_TIME", agg['trans_time_series']),
     js_const("DATA_TRANS_SERVCLS", agg['trans_servcls']),
     js_const("DATA_TRANS_DATE", agg['trans_date']),
-    # NEW data
+    # Existing enhanced data
     js_const("DATA_TS_DETAILED", agg['time_series_detailed']),
     js_const("DATA_INTERVAL_JOBS", agg['interval_job_details']),
     js_const("DATA_R4HA_SERIES", agg['r4ha_series']),
     js_const("DATA_R4HA_PEAKS", agg['r4ha_peaks']),
     js_const("DATA_R4HA_PEAK_DETAIL", agg['r4ha_peak_detail']),
     js_const("DATA_PEAKS_LOWS", agg['peaks_and_lows']),
+    # Phase 4: KPI drill-down data
+    js_const("DATA_JOB_SUMMARY_ALL", agg['job_summary_all']),
+    js_const("DATA_SERVCLS_BREAKDOWN", agg['servcls_breakdown']),
+    js_const("DATA_DATE_BREAKDOWN", agg['date_breakdown']),
+    js_const("DATA_TYPE_BREAKDOWN", agg['type_breakdown']),
+    js_const("DATA_ZIIP_JOBS", agg['ziip_jobs']),
+    js_const("DATA_TOP20_DASD", agg['top20_jobs_dasd']),
+    js_const("DATA_TOP20_CONNECT", agg['top20_jobs_connect']),
 ])
 
 html = r'''<!DOCTYPE html>
@@ -111,8 +119,11 @@ a { color: var(--accent-light); text-decoration: none; }
 .section-title { font-size: 18px; font-weight: 700; color: var(--text-heading); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .section-title .icon { font-size: 20px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
-.kpi-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.kpi-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; cursor: pointer; }
+.kpi-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 32px rgba(59,130,246,0.3); border-color: var(--accent); }
+.kpi-card:active { transform: translateY(-1px) scale(0.99); }
+.kpi-card .kpi-click-hint { font-size: 10px; color: var(--accent-light); opacity: 0; transition: opacity 0.2s; margin-top: 4px; }
+.kpi-card:hover .kpi-click-hint { opacity: 0.8; }
 .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
 .kpi-card:nth-child(1)::before { background: var(--accent); }
 .kpi-card:nth-child(2)::before { background: var(--accent2); }
@@ -252,6 +263,27 @@ a { color: var(--accent-light); text-decoration: none; }
         </tr></thead>
         <tbody id="drillTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Drill-Down Modal -->
+<div class="drill-overlay" id="kpiDrillOverlay" onclick="if(event.target===this)closeKpiDrill()">
+  <div class="drill-modal" style="position:relative;width:960px;">
+    <button class="drill-close" onclick="closeKpiDrill()">&times;</button>
+    <h3 id="kpiDrillTitle">KPI Analysis</h3>
+    <div class="drill-time" id="kpiDrillSubtitle"></div>
+    <div class="drill-kpis" id="kpiDrillSummary"></div>
+    <div id="kpiDrillCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;"></div>
+    <div id="kpiDrillTableWrap" style="margin-top:12px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:8px;" id="kpiDrillTableTitle">Details</div>
+      <div style="margin-bottom:8px;"><input type="text" class="table-search" id="kpiDrillSearch" placeholder="Search..." oninput="filterKpiDrillTable()" style="width:240px;"></div>
+      <div class="data-table-wrap" style="max-height:350px;overflow-y:auto;">
+        <table class="drill-table" id="kpiDrillTable">
+          <thead id="kpiDrillThead"></thead>
+          <tbody id="kpiDrillTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -547,7 +579,10 @@ let currentData = {
   trans_time: DATA_TRANS_TIME, trans_servcls: DATA_TRANS_SERVCLS, trans_date: DATA_TRANS_DATE,
   ts_detailed: DATA_TS_DETAILED, interval_jobs: DATA_INTERVAL_JOBS,
   r4ha_series: DATA_R4HA_SERIES, r4ha_peaks: DATA_R4HA_PEAKS,
-  r4ha_peak_detail: DATA_R4HA_PEAK_DETAIL, peaks_lows: DATA_PEAKS_LOWS
+  r4ha_peak_detail: DATA_R4HA_PEAK_DETAIL, peaks_lows: DATA_PEAKS_LOWS,
+  job_summary_all: DATA_JOB_SUMMARY_ALL, servcls_breakdown: DATA_SERVCLS_BREAKDOWN,
+  date_breakdown: DATA_DATE_BREAKDOWN, type_breakdown: DATA_TYPE_BREAKDOWN,
+  ziip_jobs: DATA_ZIIP_JOBS, top20_dasd: DATA_TOP20_DASD, top20_connect: DATA_TOP20_CONNECT
 };
 
 const chartInstances = {};
@@ -571,18 +606,286 @@ function resetZoom(id) { if (chartInstances[id]) chartInstances[id].resetZoom();
 
 function renderKPIs() {
   const k = currentData.kpis;
-  document.getElementById('kpiGrid').innerHTML = [
-    { label: 'Total Records', value: fmtFull(k.total_records), sub: 'SMF 30 Subtype 2' },
-    { label: 'Total CPU Seconds', value: fmt(k.total_cpu_sec), sub: fmtFull(k.total_cpu_sec) + ' sec' },
-    { label: 'Total EXCP Count', value: fmt(k.total_excp_cnt), sub: fmtFull(k.total_excp_cnt) + ' I/O ops' },
-    { label: 'Total DASD SSCH', value: fmt(k.total_dasd_ssch), sub: fmtFull(k.total_dasd_ssch) },
-    { label: 'Unique Jobs', value: k.unique_jobs, sub: k.unique_jobs + ' distinct' },
-    { label: 'Total CPU Service Units', value: fmt(k.total_cpu_su), sub: fmtFull(k.total_cpu_su) + ' SU' },
-    { label: 'Total zIIP Seconds', value: fmt(k.total_ziip_sec), sub: fmtFull(k.total_ziip_sec) + ' sec' },
-    { label: 'Total Memory SU (MSO)', value: fmt(k.total_mso_su), sub: fmtFull(k.total_mso_su) + ' MSO-SU' },
-    { label: 'Avg I/O Connect Time', value: fmt(k.avg_connect), sub: fmtFull(k.avg_connect) + ' ms avg' },
-    { label: 'Ended Transactions', value: fmtFull(k.ended_transactions), sub: 'TYPE=2 completions' }
-  ].map(c => `<div class="kpi-card"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.value}</div><div class="kpi-sub">${c.sub}</div></div>`).join('');
+  const kpis = [
+    { label: 'Total Records', value: fmtFull(k.total_records), sub: 'SMF 30 Subtype 2', drill: 'kpiDrillRecords' },
+    { label: 'Total CPU Seconds', value: fmt(k.total_cpu_sec), sub: fmtFull(k.total_cpu_sec) + ' sec', drill: 'kpiDrillCpuSec' },
+    { label: 'Total EXCP Count', value: fmt(k.total_excp_cnt), sub: fmtFull(k.total_excp_cnt) + ' I/O ops', drill: 'kpiDrillExcp' },
+    { label: 'Total DASD SSCH', value: fmt(k.total_dasd_ssch), sub: fmtFull(k.total_dasd_ssch), drill: 'kpiDrillDasd' },
+    { label: 'Unique Jobs', value: k.unique_jobs, sub: k.unique_jobs + ' distinct', drill: 'kpiDrillJobs' },
+    { label: 'Total CPU Service Units', value: fmt(k.total_cpu_su), sub: fmtFull(k.total_cpu_su) + ' SU', drill: 'kpiDrillCpuSu' },
+    { label: 'Total zIIP Seconds', value: fmt(k.total_ziip_sec), sub: fmtFull(k.total_ziip_sec) + ' sec', drill: 'kpiDrillZiip' },
+    { label: 'Total Memory SU (MSO)', value: fmt(k.total_mso_su), sub: fmtFull(k.total_mso_su) + ' MSO-SU', drill: 'kpiDrillMso' },
+    { label: 'Avg I/O Connect Time', value: fmt(k.avg_connect), sub: fmtFull(k.avg_connect) + ' ms avg', drill: 'kpiDrillConnect' },
+    { label: 'Ended Transactions', value: fmtFull(k.ended_transactions), sub: 'TYPE=2 completions', drill: 'kpiDrillTrans' }
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(c =>
+    `<div class="kpi-card" onclick="${c.drill}()"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.value}</div><div class="kpi-sub">${c.sub}</div><div class="kpi-click-hint">\u{1F50D} Click for details</div></div>`
+  ).join('');
+}
+
+// ===== KPI DRILL-DOWN SYSTEM =====
+let kpiDrillChartInstances = [];
+let kpiDrillAllRows = [];
+
+function closeKpiDrill() {
+  document.getElementById('kpiDrillOverlay').classList.remove('active');
+  kpiDrillChartInstances.forEach(c => { try { c.destroy(); } catch(e){} });
+  kpiDrillChartInstances = [];
+  kpiDrillAllRows = [];
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeKpiDrill(); closeDrillDown(); } });
+
+function openKpiDrill(title, subtitle, summaryItems, chartConfigs, tableTitle, tableHeaders, tableRows) {
+  closeKpiDrill();
+  document.getElementById('kpiDrillTitle').textContent = title;
+  document.getElementById('kpiDrillSubtitle').textContent = subtitle;
+  document.getElementById('kpiDrillSummary').innerHTML = summaryItems.map(s =>
+    `<div class="drill-kpi"><div class="dk-label">${s.l}</div><div class="dk-value">${s.v}</div></div>`
+  ).join('');
+
+  const chartsDiv = document.getElementById('kpiDrillCharts');
+  chartsDiv.innerHTML = '';
+  chartConfigs.forEach((cfg, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'height:220px;background:var(--bg);border-radius:8px;padding:8px;';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'kpiDrillChart' + i;
+    wrap.appendChild(canvas);
+    chartsDiv.appendChild(wrap);
+    const inst = new Chart(canvas.getContext('2d'), cfg);
+    kpiDrillChartInstances.push(inst);
+  });
+
+  document.getElementById('kpiDrillTableTitle').textContent = tableTitle;
+  document.getElementById('kpiDrillThead').innerHTML = '<tr>' + tableHeaders.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  kpiDrillAllRows = tableRows;
+  document.getElementById('kpiDrillSearch').value = '';
+  renderKpiDrillTableRows(tableRows);
+  document.getElementById('kpiDrillOverlay').classList.add('active');
+}
+
+function renderKpiDrillTableRows(rows) {
+  document.getElementById('kpiDrillTbody').innerHTML = rows.slice(0, 100).map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('');
+}
+
+function filterKpiDrillTable() {
+  const q = document.getElementById('kpiDrillSearch').value.toLowerCase().trim();
+  if (!q) { renderKpiDrillTableRows(kpiDrillAllRows); return; }
+  const filtered = kpiDrillAllRows.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
+  renderKpiDrillTableRows(filtered);
+}
+
+const miniChartOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', callback: v => fmt(v) }, grid: { color: 'rgba(148,163,184,0.08)' } } } };
+const miniPieOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', padding: 8, font: { size: 10 }, boxWidth: 10 } } } };
+
+// 1. Total Records KPI drill-down
+function kpiDrillRecords() {
+  const k = currentData.kpis;
+  const td = currentData.type_breakdown || currentData.type_dist;
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const dd = currentData.date_breakdown || currentData.date_dist;
+  const jobs = (currentData.job_summary_all || []).slice(0, 20);
+  const tl = {'TYPE=2':'TYPE=2 (Job Step)','TYPE=4':'TYPE=4 (OMVS)','TYPE=6':'TYPE=6 (Addr Space)'};
+  openKpiDrill(
+    '\u{1F4CA} Total Records Analysis', k.total_records.toLocaleString() + ' records across ' + k.date_range,
+    [{ l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Unique Jobs', v: k.unique_jobs }, { l: 'Date Range', v: k.date_range }, { l: 'System', v: k.smfid }],
+    [
+      { type: 'pie', data: { labels: td.map(d => tl[d.type] || d.type), datasets: [{ data: td.map(d => d.count), backgroundColor: [COLORS[2], COLORS[0], COLORS[1]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.count), backgroundColor: [COLORS[0], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'bar', data: { labels: dd.map(d => d.date), datasets: [{ label: 'Records', data: dd.map(d => d.count), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: miniChartOpts },
+    ],
+    'Top 20 Jobs by Record Count',
+    ['#', 'Job Name', 'Records', 'CPU-SU', 'CPU Sec', 'EXCP'],
+    jobs.map((j, i) => [i + 1, j.job, fmtFull(j.count), fmt(j.CPU_SU), j.CPU_SEC, fmt(j.EXCP_CNT)])
+  );
+}
+
+// 2. Total CPU Seconds KPI drill-down
+function kpiDrillCpuSec() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.CPU_SEC - a.CPU_SEC);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BB} CPU Seconds Analysis', fmtFull(k.total_cpu_sec) + ' total CPU seconds',
+    [{ l: 'Total CPU Sec', v: fmt(k.total_cpu_sec) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job CPU Sec', v: top20[0] ? fmt(top20[0].CPU_SEC) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'CPU Sec', data: top20.map(j => j.CPU_SEC), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.CPU_SEC), backgroundColor: [COLORS[1], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'CPU Sec', data: ts.map(d => d.CPU_SEC), borderColor: COLORS[1], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by CPU Seconds',
+    ['#', 'Job Name', 'CPU Sec', 'CPU-SU', 'EXCP', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, j.CPU_SEC, fmt(j.CPU_SU), fmt(j.EXCP_CNT), j.count])
+  );
+}
+
+// 3. Total EXCP Count KPI drill-down
+function kpiDrillExcp() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.EXCP_CNT - a.EXCP_CNT);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BE} EXCP Count Analysis', fmtFull(k.total_excp_cnt) + ' total I/O operations',
+    [{ l: 'Total EXCP', v: fmt(k.total_excp_cnt) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job EXCP', v: top20[0] ? fmt(top20[0].EXCP_CNT) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'EXCP', data: top20.map(j => j.EXCP_CNT), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.EXCP_CNT), backgroundColor: [COLORS[4], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'EXCP', data: ts.map(d => d.EXCP_CNT), borderColor: COLORS[4], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by EXCP Count',
+    ['#', 'Job Name', 'EXCP Count', 'DASD SSCH', 'CPU Sec', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.EXCP_CNT), fmt(j.DASD_SSCH), j.CPU_SEC, j.count])
+  );
+}
+
+// 4. Total DASD SSCH KPI drill-down
+function kpiDrillDasd() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).sort((a, b) => b.DASD_SSCH - a.DASD_SSCH);
+  const top20 = jobs.slice(0, 20);
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{1F4BD} DASD SSCH Analysis', fmtFull(k.total_dasd_ssch) + ' total DASD start subchannel operations',
+    [{ l: 'Total DASD SSCH', v: fmt(k.total_dasd_ssch) }, { l: 'Top Job', v: top20[0] ? top20[0].job : 'N/A' }, { l: 'Top Job DASD', v: top20[0] ? fmt(top20[0].DASD_SSCH) : '0' }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'DASD SSCH', data: top20.map(j => j.DASD_SSCH), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.DASD_SSCH || 0), backgroundColor: [COLORS[2], COLORS[3]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'DASD SSCH', data: ts.map(d => d.DASD_SSCH), borderColor: COLORS[2], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs Ranked by DASD SSCH',
+    ['#', 'Job Name', 'DASD SSCH', 'EXCP Count', 'Connect', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.DASD_SSCH), fmt(j.EXCP_CNT), fmt(j.CONNECT), j.count])
+  );
+}
+
+// 5. Unique Jobs KPI drill-down
+function kpiDrillJobs() {
+  const k = currentData.kpis;
+  const jobs = currentData.job_summary_all || [];
+  const top20 = jobs.slice(0, 20);
+  openKpiDrill(
+    '\u{1F4CB} Unique Jobs Analysis', k.unique_jobs + ' distinct job names',
+    [{ l: 'Unique Jobs', v: k.unique_jobs }, { l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Avg Records/Job', v: Math.round(k.total_records / k.unique_jobs) }],
+    [
+      { type: 'bar', data: { labels: top20.map(j => j.job), datasets: [{ label: 'Total SU', data: top20.map(j => j.CPU_SU + j.SRB_SU), backgroundColor: COLORS.slice(0, 20), borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+    ],
+    'All ' + k.unique_jobs + ' Jobs with Aggregate Metrics',
+    ['#', 'Job Name', 'Records', 'CPU-SU', 'SRB-SU', 'CPU Sec', 'EXCP', 'DASD SSCH'],
+    jobs.map((j, i) => [i + 1, j.job, j.count, fmt(j.CPU_SU), fmt(j.SRB_SU), j.CPU_SEC, fmt(j.EXCP_CNT), fmt(j.DASD_SSCH)])
+  );
+}
+
+// 6. Total CPU Service Units KPI drill-down
+function kpiDrillCpuSu() {
+  const k = currentData.kpis;
+  const jobs = (currentData.job_summary_all || []).slice(0, 20);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{2699}\u{FE0F} CPU Service Units Analysis', fmtFull(k.total_cpu_su) + ' total CPU-SU, ' + fmtFull(k.total_srb_su) + ' total SRB-SU',
+    [{ l: 'Total CPU-SU', v: fmt(k.total_cpu_su) }, { l: 'Total SRB-SU', v: fmt(k.total_srb_su) }, { l: 'CPU+SRB', v: fmt(k.total_cpu_su + k.total_srb_su) }],
+    [
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [{ label: 'CPU-SU', data: jobs.map(j => j.CPU_SU), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [
+        { label: 'CPU-SU', data: jobs.map(j => j.CPU_SU), backgroundColor: COLORS[0], borderWidth: 0 },
+        { label: 'SRB-SU', data: jobs.map(j => j.SRB_SU), backgroundColor: COLORS[1], borderWidth: 0 }
+      ] }, options: { ...miniChartOpts, scales: { ...miniChartOpts.scales, x: { ...miniChartOpts.scales.x, stacked: true }, y: { ...miniChartOpts.scales.y, stacked: true } } } },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'CPU-SU', data: ts.map(d => d.CPU_SU), borderColor: COLORS[0], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'Top 20 Jobs by CPU Service Units',
+    ['#', 'Job Name', 'CPU-SU', 'SRB-SU', 'IO-SU', 'Total SU', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.CPU_SU), fmt(j.SRB_SU), fmt(j.IO_SU), fmt(j.CPU_SU + j.SRB_SU + j.IO_SU), j.count])
+  );
+}
+
+// 7. Total zIIP Seconds KPI drill-down
+function kpiDrillZiip() {
+  const k = currentData.kpis;
+  const zJobs = currentData.ziip_jobs || (currentData.job_summary_all || []).filter(j => j.ZIIP_SEC > 0).sort((a, b) => b.ZIIP_SEC - a.ZIIP_SEC);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{26A1} zIIP Seconds Analysis', fmtFull(k.total_ziip_sec) + ' total zIIP seconds',
+    [{ l: 'Total zIIP Sec', v: fmt(k.total_ziip_sec) }, { l: 'Jobs Using zIIP', v: zJobs.length }, { l: 'Top zIIP Job', v: zJobs[0] ? zJobs[0].job : 'None' }],
+    [
+      { type: 'bar', data: { labels: zJobs.map(j => j.job), datasets: [{ label: 'zIIP Sec', data: zJobs.map(j => j.ZIIP_SEC), backgroundColor: COLORS[9], borderWidth: 0 }] }, options: miniChartOpts },
+      { type: 'bar', data: { labels: zJobs.map(j => j.job), datasets: [
+        { label: 'zIIP Sec', data: zJobs.map(j => j.ZIIP_SEC), backgroundColor: COLORS[9], borderWidth: 0 },
+        { label: 'CPU Sec', data: zJobs.map(j => j.CPU_SEC), backgroundColor: COLORS[0], borderWidth: 0 }
+      ] }, options: miniChartOpts },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'zIIP Sec', data: ts.map(d => d.ZIIP_SEC), borderColor: COLORS[9], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+    ],
+    'All Jobs with Non-Zero zIIP Usage',
+    ['#', 'Job Name', 'zIIP Sec', 'CPU Sec', 'zIIP/CPU Ratio', 'Records'],
+    zJobs.map((j, i) => [i + 1, j.job, j.ZIIP_SEC, j.CPU_SEC, j.CPU_SEC > 0 ? (j.ZIIP_SEC / j.CPU_SEC * 100).toFixed(1) + '%' : 'N/A', j.count])
+  );
+}
+
+// 8. Total Memory SU (MSO) KPI drill-down
+function kpiDrillMso() {
+  const k = currentData.kpis;
+  openKpiDrill(
+    '\u{1F4BE} Memory Service Units (MSO) Analysis', 'MSO_SU total: ' + fmtFull(k.total_mso_su),
+    [{ l: 'Total MSO-SU', v: fmt(k.total_mso_su) }, { l: 'Status', v: k.total_mso_su === 0 ? 'All Zero' : 'Active' }],
+    [],
+    k.total_mso_su === 0 ? 'Note: MSO_SU is zero for all records in this dataset' : 'Jobs by MSO_SU',
+    ['#', 'Job Name', 'MSO-SU', 'CPU-SU', 'Records'],
+    (currentData.job_summary_all || []).slice(0, 20).map((j, i) => [i + 1, j.job, fmt(j.MSO_SU), fmt(j.CPU_SU), j.count])
+  );
+  if (k.total_mso_su === 0) {
+    document.getElementById('kpiDrillTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--accent4);font-size:14px;">\u{26A0}\u{FE0F} MSO_SU values are zero in this dataset. This is common when the WLM service definition does not assign memory service units to address spaces. The MSO component of service units measures main storage usage, but many installations leave this unconfigured.</td></tr>';
+  }
+}
+
+// 9. Avg I/O Connect Time KPI drill-down
+function kpiDrillConnect() {
+  const k = currentData.kpis;
+  const jobs = currentData.top20_connect || (currentData.job_summary_all || []).sort((a, b) => b.CONNECT - a.CONNECT).slice(0, 20);
+  const ts = downsample(currentData.time_series, 60);
+  openKpiDrill(
+    '\u{23F1}\u{FE0F} I/O Connect Time Analysis', 'Average connect time: ' + fmtFull(k.avg_connect) + ' ms',
+    [{ l: 'Avg Connect', v: fmt(k.avg_connect) }, { l: 'Total Connect', v: fmt(k.total_connect) }, { l: 'Total Discon', v: fmt(k.total_discon) }, { l: 'Total Pending', v: fmt(k.total_pending) }],
+    [
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [{ label: 'Connect', data: jobs.map(j => j.CONNECT), backgroundColor: COLORS[0], borderWidth: 0 }] }, options: { ...miniChartOpts, indexAxis: 'y' } },
+      { type: 'bar', data: { labels: jobs.map(j => j.job), datasets: [
+        { label: 'Connect', data: jobs.map(j => j.CONNECT), backgroundColor: COLORS[0], borderWidth: 0 },
+        { label: 'Discon', data: jobs.map(j => j.DISCON), backgroundColor: COLORS[3], borderWidth: 0 },
+        { label: 'Pending', data: jobs.map(j => j.PENDING), backgroundColor: COLORS[4], borderWidth: 0 }
+      ] }, options: { ...miniChartOpts, scales: { ...miniChartOpts.scales, x: { ...miniChartOpts.scales.x, stacked: true }, y: { ...miniChartOpts.scales.y, stacked: true } } } },
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [
+        { label: 'Connect', data: ts.map(d => d.CONNECT), borderColor: COLORS[0], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+        { label: 'Discon', data: ts.map(d => d.DISCON), borderColor: COLORS[3], backgroundColor: 'transparent', borderWidth: 1.5, tension: 0.3, pointRadius: 0 },
+        { label: 'Pending', data: ts.map(d => d.PENDING), borderColor: COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+      ] }, options: { ...miniChartOpts, plugins: { ...miniChartOpts.plugins, legend: { display: true, labels: { color: '#e2e8f0', font: { size: 9 }, boxWidth: 8 } } } } },
+    ],
+    'Top 20 Jobs by Connect Time',
+    ['#', 'Job Name', 'Connect', 'Disconnect', 'Pending', 'Records'],
+    jobs.map((j, i) => [i + 1, j.job, fmt(j.CONNECT), fmt(j.DISCON), fmt(j.PENDING), j.count])
+  );
+}
+
+// 10. Ended Transactions KPI drill-down
+function kpiDrillTrans() {
+  const k = currentData.kpis;
+  const td = currentData.type_breakdown || currentData.type_dist;
+  const sc = currentData.servcls_breakdown || currentData.serv_cls;
+  const dd = currentData.date_breakdown || currentData.date_dist;
+  const ts = downsample(currentData.trans_time, 60);
+  openKpiDrill(
+    '\u{1F4C3} Ended Transactions Analysis', fmtFull(k.ended_transactions) + ' TYPE=2 completions',
+    [{ l: 'Ended (TYPE=2)', v: fmtFull(k.ended_transactions) }, { l: 'Total Records', v: fmtFull(k.total_records) }, { l: 'Completion Rate', v: (k.ended_transactions / k.total_records * 100).toFixed(1) + '%' }],
+    [
+      { type: 'line', data: { labels: ts.map(d => d.time_label), datasets: [{ label: 'TYPE=2', data: ts.map(d => d.type2), borderColor: COLORS[5], backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 1 }] }, options: miniChartOpts },
+      { type: 'pie', data: { labels: sc.map(d => d.serv_cls), datasets: [{ data: sc.map(d => d.count), backgroundColor: [COLORS[5], COLORS[0]], borderColor: '#1e293b', borderWidth: 2 }] }, options: miniPieOpts },
+      { type: 'bar', data: { labels: dd.map(d => d.date), datasets: [{ label: 'TYPE=2', data: dd.map(d => d.type2_count), backgroundColor: COLORS[5], borderWidth: 0 }] }, options: miniChartOpts },
+    ],
+    'Transaction Breakdown by Type',
+    ['Record Type', 'Count', '% of Total', 'CPU-SU', 'CPU Sec', 'EXCP'],
+    td.map(t => [t.type, fmtFull(t.count), (t.count / k.total_records * 100).toFixed(1) + '%', fmt(t.CPU_SU), t.CPU_SEC, fmt(t.EXCP_CNT)])
+  );
 }
 
 function createChart(id, config) {
@@ -651,7 +954,6 @@ function openDrillDown(timeLabel) {
   document.getElementById('drillOverlay').classList.add('active');
 }
 function closeDrillDown() { document.getElementById('drillOverlay').classList.remove('active'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrillDown(); });
 
 function makeClickHandler(labelsArr) {
   return function(evt, elements) {
@@ -1250,12 +1552,39 @@ function aggregateRecords(records) {
     peaksLows[m] = {peaks:peaks3,lows:lows3};
   }
 
+  // Phase 8: Compute additional data for KPI drill-downs
+  const jobSummaryAll = Object.entries(jobSu).sort((a,b)=>b[1].CPU_SU-a[1].CPU_SU).map(([n,v])=>{
+    const zi=jobZiip[n]||{ZIIP_SEC:0,CPU_SEC:0}; const io=jobIo[n]||{EXCP_CNT:0,DASD_SSCH:0,CONNECT:0};
+    const deep=jobIoDeep[n]||{CONNECT:0,DISCON:0,PENDING:0};
+    return {job:n,CPU_SU:v.CPU_SU,SRB_SU:v.SRB_SU,IO_SU:v.IO_SU,MSO_SU:v.MSO_SU,CPU_SEC:Math.round((jobCpuSec[n]||0)*100)/100,
+      EXCP_CNT:io.EXCP_CNT,DASD_SSCH:io.DASD_SSCH,CONNECT:deep.CONNECT,DISCON:deep.DISCON,PENDING:deep.PENDING,
+      ZIIP_SEC:Math.round(zi.ZIIP_SEC*100)/100,count:v.count};
+  });
+  const servclsBreakdown = servClsArr.map(s=>{
+    const recs=records.filter(r=>(r.SERV_CLS||'UNKNOWN')===s.serv_cls);
+    return {...s,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0),CONNECT:recs.reduce((a,r)=>a+r.CONNECT,0)};
+  });
+  const dateBreakdown = dateArr.map(d=>{
+    const dayNum=parseInt(d.date.replace('Day ',''));
+    const recs=records.filter(r=>r.DATE===dayNum);
+    return {...d,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0)};
+  });
+  const typeBreakdown = typeArr.map(t=>{
+    const recs=records.filter(r=>(r.TYPE||'UNKNOWN')===t.type);
+    return {...t,DASD_SSCH:recs.reduce((a,r)=>a+r.DASD_SSCH,0),CONNECT:recs.reduce((a,r)=>a+r.CONNECT,0),ZIIP_SEC:Math.round(recs.reduce((a,r)=>a+r.ZIIP_SEC,0)*100)/100};
+  });
+  const ziipJobsArr = jobSummaryAll.filter(j=>j.ZIIP_SEC>0).sort((a,b)=>b.ZIIP_SEC-a.ZIIP_SEC);
+  const top20Dasd = [...jobSummaryAll].sort((a,b)=>b.DASD_SSCH-a.DASD_SSCH).slice(0,20).map(j=>({job:j.job,DASD_SSCH:j.DASD_SSCH,EXCP_CNT:j.EXCP_CNT,count:j.count}));
+  const top20Connect = [...jobSummaryAll].sort((a,b)=>b.CONNECT-a.CONNECT).slice(0,20).map(j=>({job:j.job,CONNECT:j.CONNECT,DISCON:j.DISCON,PENDING:j.PENDING,count:j.count}));
+
   return {
     kpis,top20_su:top20Su,top20_io:top20Io,top20_cpu_sec:top20CpuSec,serv_cls:servClsArr,type_dist:typeArr,
     time_series:timeSeries,date_dist:dateArr,sample,top_programs:topPgm,top20_mso:top20Mso,top20_ziip:top20Ziip,
     top20_io_deep:top20IoDeep,top20_total_su:top20TotalSu,trans_time:transTimeArr,trans_servcls:transServclsArr,trans_date:transDateArr,
     ts_detailed:tsDetailed,interval_jobs:intervalJobs,r4ha_series:r4haSeries,r4ha_peaks:r4haPeaks,
-    r4ha_peak_detail:r4haPeakDetail,peaks_lows:peaksLows
+    r4ha_peak_detail:r4haPeakDetail,peaks_lows:peaksLows,
+    job_summary_all:jobSummaryAll,servcls_breakdown:servclsBreakdown,date_breakdown:dateBreakdown,
+    type_breakdown:typeBreakdown,ziip_jobs:ziipJobsArr,top20_dasd:top20Dasd,top20_connect:top20Connect
   };
 }
 
